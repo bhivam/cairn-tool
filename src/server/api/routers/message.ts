@@ -20,6 +20,7 @@ export const messageRouter = createTRPCRouter({
 
   getMessages: protectedProcedure.query(async ({ ctx }) => {
     const post = await ctx.db.query.messages.findMany({
+      with: { user: true },
       orderBy: (messages, { asc }) => [asc(messages.createdAt)],
     });
 

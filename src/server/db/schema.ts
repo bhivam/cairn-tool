@@ -8,7 +8,7 @@ export const messages = createTable(
   "message",
   (d) => ({
     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
-    content: d.varchar({ length: 256 }),
+    content: d.varchar({ length: 256 }).notNull(),
     createdById: d
       .varchar({ length: 255 })
       .notNull()
@@ -23,6 +23,13 @@ export const messages = createTable(
     index("created_by_idx").on(t.createdById),
   ],
 );
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  user: one(users, {
+    fields: [messages.createdById],
+    references: [users.id]
+  })
+}))
 
 export const users = createTable("user", (d) => ({
   id: d
@@ -41,9 +48,8 @@ export const users = createTable("user", (d) => ({
   image: d.varchar({ length: 255 }),
 }));
 
-// auth stuff!
-
-export const usersRelations = relations(users, ({ many }) => ({
+relations(users, ({ many }) => ({
+  messages: many(messages),
   accounts: many(accounts),
 }));
 
