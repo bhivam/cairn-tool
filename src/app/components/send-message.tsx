@@ -46,9 +46,6 @@ export default function SendMessage({ sendMessage, isPending }: SendMessageProps
   }
 
   function handleKeyUp(e: KeyboardEvent<HTMLInputElement>) {
-
-
-
     match(e)
       .with({ key: "ArrowUp" }, () => {
         console.log(history.current)
@@ -66,7 +63,7 @@ export default function SendMessage({ sendMessage, isPending }: SendMessageProps
           historyCursor.current++;
         }
       })
-      .otherwise(() => { })
+      .run()
   }
 
   return (

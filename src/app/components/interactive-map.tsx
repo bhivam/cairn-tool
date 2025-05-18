@@ -41,14 +41,16 @@ export default function InteractiveMap() {
 
   useEffect(() => {
     const loader = new TextureLoader();
-    loader.load('/map.png', (loadedTexture) => {
+    loader.load("/map.png", (loadedTexture: Texture) => {
       setTexture(loadedTexture);
+      const image = loadedTexture.image as HTMLImageElement | undefined;
       setImageSize([
-        loadedTexture.image.width,
-        loadedTexture.image.height,
+        image?.width ?? 0,
+        image?.height ?? 0,
       ]);
     });
   }, []);
+
 
   return (
     <div
