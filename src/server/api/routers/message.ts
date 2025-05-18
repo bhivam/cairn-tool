@@ -15,14 +15,13 @@ import { eq } from "drizzle-orm";
 // will return some structured command type along with the result
 // based on the command type frontned will render it out in some way
 
-
-type EventMap<T> = Record<keyof T, any[]>;
+type EventMap<T> = Record<keyof T, any[]>;// eslint-disable-line
 class IterableEventEmitter<T extends EventMap<T>> extends EventEmitter<T> {
   toIterable<TEventName extends keyof T & string>(
     eventName: TEventName,
     opts?: NonNullable<Parameters<typeof on>[2]>,
   ): AsyncIterable<T[TEventName]> {
-    return on(this as any, eventName, opts) as any;
+    return on(this as any, eventName, opts) as any;// eslint-disable-line
   }
 }
 
