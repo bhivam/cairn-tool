@@ -1,15 +1,9 @@
 
 import type { RouterOutputs } from "@/trpc/react";
 import React from "react";
-import { CommandResultDisplay } from "./command-result";
-
-// !s <threshold> <modifier>
-// we will display threshold and modifier
-// modify the roll, not the threshold
-// meet or beat (lower in this case)
-// green on success, red on failure
-// bright green or bright red for crit
-// meeting the threehold exactly is a crit success
+import { RollResultDisplay } from "./roll-result-display";
+import { match } from "ts-pattern";
+import SaveResultDisplay from "./save-result-display";
 
 export function Message({ message }:
   { message: Exclude<RouterOutputs["message"]["getMessages"], null>[number] }) {
@@ -43,11 +37,18 @@ export function Message({ message }:
         <div className="text-black mt-1">
           {message.content}
         </div>
-        {message.commandResult && (
-          <CommandResultDisplay
-            commandResult={message.commandResult}
-          />
-        )}
+        {
+          match(message.commandResult)
+            .with(
+              { type: "roll" },
+              (res) => <RollResultDisplay commandResult={res} />
+            )
+            .with(
+              { type: "save" },
+              (res) => <SaveResultDisplay commandResult={res} />
+            )
+            .otherwise(() => null)
+        }
       </div>
     </div>
   );

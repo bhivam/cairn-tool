@@ -1,18 +1,10 @@
+import type { CommandResult } from "@/server/api/routers/message";
 import React, { useMemo, useState } from "react";
 
-type CommandResult = {
-  type: "roll";
-  rolls: number[];
-  total: number;
-  drop?: number;
-  add?: number;
-  sign?: "+" | "-";
-};
-
-export function CommandResultDisplay({
+export function RollResultDisplay({
   commandResult,
 }: {
-  commandResult: CommandResult;
+  commandResult: Extract<CommandResult, { type: "roll" }>;
 }) {
   const [showDetails, setShowDetails] = useState(true);
 
@@ -46,15 +38,15 @@ export function CommandResultDisplay({
             {commandResult.total}{" "}
           </span>
           {modifier && (
-            <span className="text-black text-sm">
+            <span className="text-sm">
               Modifier:{" "}
               <span className="font-mono">
-                {modifier}
+                {modifier}{" "}
               </span>
             </span>
           )}
           {dropInfo && (
-            <span className="text-black text-sm">
+            <span className="text-sm">
               Dropped:{" "}
               <span className="font-mono">
                 {dropInfo}
@@ -69,9 +61,16 @@ export function CommandResultDisplay({
           <span className="font-semibold">Rolls:</span>{" "}
           <span className="font-mono">{
             commandResult.rolls.map((roll, idx) =>
-              droppedRollsIndicies.has(idx)
-                ? <span key={idx} className="font-extralight">{roll}{", "}</span>
-                : <span key={idx} className="font-extrabold">{roll}{", "}</span>
+              <span key={idx}>
+                {
+                  droppedRollsIndicies.has(idx)
+                    ? <span className="font-extralight text-gray-400">{roll}</span>
+                    : <span className="font-extrabold text-black">{roll}</span>
+                }
+                {
+                  idx !== commandResult.rolls.length - 1 ? ", " : ""
+                }
+              </span>
             )
           }</span>
         </div>

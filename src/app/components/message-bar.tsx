@@ -6,6 +6,7 @@ import { api, type RouterOutputs } from "@/trpc/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState, useCallback } from "react";
+import { isatty } from "tty";
 
 export default function MessageBar() {
   const getMessagesQuery = api.message.getMessages.useQuery();
@@ -58,19 +59,27 @@ export default function MessageBar() {
         );
     },
   });
-  
+
   // TODO some sort of error handling for broken connections
   api.message.messageUpdates.useSubscription(
     undefined,
     {
       onData: message => {
-        if (message.createdById !== session.data!.user.id)
+        if (message.createdById !== session.data!.user.id) {
           queryClient.setQueryData<RouterOutputs["message"]["getMessages"]>(
             [["message", "getMessages"], { type: 'query' }],
             (old) => (old ? [...old, message] : [message])
           );
-        else
-          console.log("THAT WAS MY MESSAGE!")
+          if (!isAtBottom)
+            setShowGoToCurrent(true);
+        }
+        else {
+          queryClient.setQueryData<RouterOutputs["message"]["getMessages"]>(
+            [["message", "getMessages"], { type: 'query' }],
+            (old) => (old ? [...(old.slice(0, old.length - 1)), message] : [message])
+          )
+        }
+
       },
     }
   )
@@ -106,11 +115,7 @@ export default function MessageBar() {
 
   useEffect(() => {
     if (!getMessagesQuery.data) return;
-    if (isAtBottom) {
-      scrollToBottom("smooth");
-    } else {
-      setShowGoToCurrent(true);
-    }
+    if (isAtBottom) scrollToBottom("instant");
   }, [
     getMessagesQuery.data ? getMessagesQuery.data.length : 0,
   ]);

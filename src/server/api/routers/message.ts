@@ -7,13 +7,6 @@ import {
 import { messages } from "@/server/db/schema";
 import { match } from "ts-pattern";
 import EventEmitter, { on } from 'node:events';
-import { eq } from "drizzle-orm";
-
-// https://github.com/trpc/examples-next-sse-chat/blob/main/src/server/routers/channel.ts
-
-// NOTE:
-// will return some structured command type along with the result
-// based on the command type frontned will render it out in some way
 
 type EventMap<T> = Record<keyof T, any[]>;// eslint-disable-line
 class IterableEventEmitter<T extends EventMap<T>> extends EventEmitter<T> {
@@ -31,6 +24,13 @@ export interface MyEvents {
 
 export const ee = new IterableEventEmitter<MyEvents>();
 
+// !s <threshold> <modifier>
+// we will display threshold and modifier
+// roll a d20 and add modifier 
+// meet or beat threshold (lower in this case)
+// green on success, red on failure
+// bright green or bright red for crit
+// meeting the threehold exactly is a crit success
 
 type ParseResult =
   | {
@@ -43,11 +43,19 @@ type ParseResult =
       zSign: "+" | "-" | undefined
     };
   }
+  | {
+    command: 's';
+    args: {
+      threshold: number,
+      modifier: number | undefined
+    };
+  }
   | null;
 
 export function parseContent(content: string): ParseResult {
   const patterns: Record<string, RegExp> = {
     r: /^!r[ \t]+(\d+)d(\d+)(?:d(\d+))?(?:[ \t]*([+-])[ \t]*(\d+))?$/,
+    s: /^!s[ \t]+(\d+)[ \t]*([+-]?\d+)?$/
   };
 
   const entry = Object.entries(patterns).find(([_, pattern]) =>
@@ -57,30 +65,48 @@ export function parseContent(content: string): ParseResult {
   if (!entry) return null;
 
   const [command, pattern] = entry;
-  const match = content.match(pattern);
+  const matches = content.match(pattern);
 
-  if (!match) return null;
+  if (!matches) return null;
 
   // TODO ts-pattern for matching and then checks for argument types inside
-  // TODO option for advantage
-  if (command === "r" && match[1] && match[2]) {
-    const x = parseInt(match[1], 10);
-    const y = parseInt(match[2], 10);
-    const w = match[3] ? parseInt(match[3]) : undefined
-    const zSign = match[4] !== "+" && match[4] !== "-" ? undefined : match[4]
-    const z = match[5] ? parseInt(match[5]) : undefined
+  // TODO advantage (does two rolls and selects better one)
 
-    // TODO create some error type for result that will tell the user they fucked up
-    // Should I check for this here or when I'm running the command?
-    if (!w || (w && w < x)) {
-      return {
-        command,
-        args: { x, y, w, z, zSign },
-      };
-    }
-  }
+  return match(command)
+    .with("r", (command) => {
+      if (matches[1] && matches[2]) {
+        const x = parseInt(matches[1], 10);
+        const y = parseInt(matches[2], 10);
+        const w = matches[3] ? parseInt(matches[3]) : undefined
+        const zSign = matches[4] !== "+" && matches[4] !== "-" ? undefined : matches[4]
+        const z = matches[5] ? parseInt(matches[5]) : undefined
 
-  return null;
+        // TODO create some error type for result that will tell the user they fucked up
+        // Should I check for this here or when I'm running the command?
+        if (!w || (w && w < x)) {
+          const res: ParseResult = {
+            command,
+            args: { x, y, w, z, zSign },
+          };
+          return res
+        }
+      }
+      return null
+    })
+    .with("s", (command) => {
+      if (matches[1]) {
+        const threshold = parseInt(matches[1], 10);
+        const modifier = matches[2] ? parseInt(matches[2], 10) : undefined;
+
+        const res: ParseResult = {
+          command,
+          args: { threshold, modifier }
+        }
+        return res
+      }
+      return null
+    })
+    .otherwise(() => null)
 }
 
 export const CommandResultSchema = z.discriminatedUnion("type",
@@ -92,6 +118,12 @@ export const CommandResultSchema = z.discriminatedUnion("type",
       add: z.number().optional(),
       sign: z.enum(["+", "-"]).optional(),
       total: z.number()
+    }),
+    z.object({
+      type: z.literal("save"),
+      roll: z.number(),
+      modifier: z.number().optional(),
+      threshold: z.number()
     })
   ]
 )
@@ -99,14 +131,7 @@ export const CommandResultSchema = z.discriminatedUnion("type",
 export type CommandResult = z.infer<typeof CommandResultSchema>
 
 export type Message = {
-  commandResult: {
-    type: "roll";
-    rolls: number[];
-    total: number;
-    drop?: number | undefined;
-    add?: number | undefined;
-    sign?: "+" | "-" | undefined;
-  } | null;
+  commandResult: CommandResult | null;
   id: number;
   content: string;
   createdById: string;
@@ -168,6 +193,17 @@ function runCommand(result: ParseResult): CommandResult | null {
         total: total
       }
 
+      return result
+    })
+    .with({ command: "s" }, ({ args: { threshold, modifier } }) => {
+      const roll = Math.ceil(Math.random() * 20)
+
+      const result: CommandResult = {
+        type: "save",
+        roll,
+        modifier,
+        threshold,
+      }
       return result
     })
     .otherwise(() => null);
