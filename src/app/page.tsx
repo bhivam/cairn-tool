@@ -3,7 +3,7 @@ import Link from "next/link";
 import { auth } from "@/server/auth";
 import { HydrateClient } from "@/trpc/server";
 import MessageBar from "./components/message-bar";
-import Canvas from "./components/canvas";
+import InteractiveMap from "./components/interactive-map";
 
 export default async function Home() {
   const session = await auth();
@@ -36,7 +36,7 @@ export default async function Home() {
           session ?
             <div className="flex h-full overflow-y-auto">
               <div className="basis-3/4 flex-auto">
-                <Canvas />
+                <InteractiveMap />
               </div>
               <div className="basis-1/4 flex-auto">
                 <MessageBar />
