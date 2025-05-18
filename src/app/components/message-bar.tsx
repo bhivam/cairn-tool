@@ -6,7 +6,6 @@ import { api, type RouterOutputs } from "@/trpc/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { isatty } from "tty";
 
 export default function MessageBar() {
   const getMessagesQuery = api.message.getMessages.useQuery();
