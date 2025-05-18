@@ -6,12 +6,32 @@ import {
 } from "@/server/api/trpc";
 import { messages } from "@/server/db/schema";
 import { match } from "ts-pattern";
+import EventEmitter, { on } from 'node:events';
+import { eq } from "drizzle-orm";
 
 // https://github.com/trpc/examples-next-sse-chat/blob/main/src/server/routers/channel.ts
 
 // NOTE:
 // will return some structured command type along with the result
 // based on the command type frontned will render it out in some way
+
+
+type EventMap<T> = Record<keyof T, any[]>;
+class IterableEventEmitter<T extends EventMap<T>> extends EventEmitter<T> {
+  toIterable<TEventName extends keyof T & string>(
+    eventName: TEventName,
+    opts?: NonNullable<Parameters<typeof on>[2]>,
+  ): AsyncIterable<T[TEventName]> {
+    return on(this as any, eventName, opts) as any;
+  }
+}
+
+export interface MyEvents {
+  newMessage: [message: Message];
+}
+
+export const ee = new IterableEventEmitter<MyEvents>();
+
 
 type ParseResult =
   | {
@@ -79,6 +99,29 @@ export const CommandResultSchema = z.discriminatedUnion("type",
 
 export type CommandResult = z.infer<typeof CommandResultSchema>
 
+export type Message = {
+  commandResult: {
+    type: "roll";
+    rolls: number[];
+    total: number;
+    drop?: number | undefined;
+    add?: number | undefined;
+    sign?: "+" | "-" | undefined;
+  } | null;
+  id: number;
+  content: string;
+  createdById: string;
+  createdAt: Date;
+  updatedAt: Date | null;
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+    emailVerified: Date | null;
+    image: string | null;
+  };
+}
+
 function runCommand(result: ParseResult): CommandResult | null {
   return match(result)
     .with({ command: "r" }, ({ args }) => {
@@ -144,11 +187,29 @@ export const messageRouter = createTRPCRouter({
         commandResult = runCommand(command)
       }
 
-      await ctx.db.insert(messages).values({
-        content: input.content,
-        commandResult,
-        createdById: ctx.session.user.id,
+      const [inserted] = await ctx.db
+        .insert(messages)
+        .values({
+          content: input.content,
+          commandResult,
+          createdById: ctx.session.user.id,
+        })
+        .returning();
+
+      if (!inserted) {
+        throw new Error("big problem :(")
+      }
+
+      const message = await ctx.db.query.messages.findFirst({
+        where: (m, { eq }) => eq(m.id, inserted.id),
+        with: { user: true },
       });
+
+      if (!message) {
+        throw new Error("big problem :(")
+      }
+
+      ee.emit("newMessage", { ...message, commandResult })
     }),
 
   getMessages: protectedProcedure.query(async ({ ctx }) => {
@@ -157,7 +218,7 @@ export const messageRouter = createTRPCRouter({
       orderBy: (messages, { asc }) => [asc(messages.createdAt)],
     });
 
-    const messagesWithResults = messages.map(
+    const messagesWithResults: Message[] = messages.map(
       message => ({
         ...message,
         commandResult: message.commandResult
@@ -168,5 +229,14 @@ export const messageRouter = createTRPCRouter({
 
     return messagesWithResults;
   }),
+
+  messageUpdates: protectedProcedure
+    .subscription(async function*(opts) {
+      for await (const message of ee.toIterable("newMessage", {
+        signal: opts.signal
+      })) {
+        yield* message
+      }
+    })
 });
 

@@ -8,7 +8,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState, useCallback } from "react";
 
 export default function MessageBar() {
-  const getMessagesQuery = api.message.getMessages.useQuery(undefined, { refetchInterval: 1000 });
+  const getMessagesQuery = api.message.getMessages.useQuery();
   const queryClient = useQueryClient();
   const session = useSession();
 
@@ -58,6 +58,23 @@ export default function MessageBar() {
         );
     },
   });
+  
+  // TODO some sort of error handling for broken connections
+  api.message.messageUpdates.useSubscription(
+    undefined,
+    {
+      onData: message => {
+        if (message.createdById !== session.data!.user.id)
+          queryClient.setQueryData<RouterOutputs["message"]["getMessages"]>(
+            [["message", "getMessages"], { type: 'query' }],
+            (old) => (old ? [...old, message] : [message])
+          );
+        else
+          console.log("THAT WAS MY MESSAGE!")
+      },
+    }
+  )
+
 
   function scrollToBottom(behavior: ScrollBehavior = "smooth") {
     dummyDiv.current?.scrollIntoView({ behavior });
