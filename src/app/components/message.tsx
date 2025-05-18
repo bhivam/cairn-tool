@@ -14,7 +14,7 @@ import { CommandResultDisplay } from "./command-result";
 export function Message({ message }:
   { message: Exclude<RouterOutputs["message"]["getMessages"], null>[number] }) {
   const avatar =
-    message.user.image ||
+    message.user.image ??
     `https://ui-avatars.com/api/?name=${encodeURIComponent(
       message.user.email.toUpperCase()
     )}&background=5865F2&color=fff`;
@@ -29,7 +29,7 @@ export function Message({ message }:
       <div>
         <div className="flex items-center gap-2">
           <span className="font-semibold text-gray-400">
-            {message.user.name || message.user.email}
+            {message.user.name ?? message.user.email}
           </span>
           <span className="text-xs text-gray-400">
             {

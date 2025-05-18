@@ -1,6 +1,6 @@
 
 import { type RouterOutputs } from "@/trpc/react";
-import type { RefObject } from "react";
+import { useMemo, type RefObject } from "react";
 import { match } from "ts-pattern";
 import { Message } from "./message";
 
@@ -15,6 +15,13 @@ export default function MessageList({
   messages: RouterOutputs["message"]["getMessages"] | undefined;
   dummyDiv: RefObject<HTMLDivElement | null>
 }) {
+  const LoadingBars = useMemo(() => Array.from({ length: 5 }, (_, i) => (
+    <div
+      key={i}
+      className="h-6 w-3/4 animate-pulse rounded bg-gray-200"
+    />
+  )), [])
+
   return match([isPending, isError])
     .with([true, true], () => (
       <div className="p-4 text-center text-red-500">Loading and Error!</div>
@@ -24,12 +31,7 @@ export default function MessageList({
     ))
     .with([true, false], () => (
       <div className="space-y-2 p-4">
-        {[...Array(5)].map((_, i) => (
-          <div
-            key={i}
-            className="h-6 w-3/4 animate-pulse rounded bg-gray-200"
-          />
-        ))}
+        {LoadingBars}
       </div>
     ))
     .with([false, false], () => (
