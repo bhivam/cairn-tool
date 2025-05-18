@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 type SendMessageProps = {
   sendMessage(this: void, content: string): Promise<void>;
@@ -10,6 +10,7 @@ type SendMessageProps = {
 export default function SendMessage({ sendMessage, isPending }: SendMessageProps) {
   const [content, setContent] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const handleSubmit = useCallback(
     async (e?: React.FormEvent) => {
@@ -19,12 +20,21 @@ export default function SendMessage({ sendMessage, isPending }: SendMessageProps
       try {
         await sendMessage(content);
         setContent("");
+        // TODO this is hacky, find a better solution
+        setTimeout(() => {
+          if (inputRef.current)
+            inputRef.current.focus()
+        }, 20);
       } catch (_) {
         setError("Failed to send message.");
       }
     },
     [content, sendMessage]
   );
+
+  // TODO:
+  // - remove messages padding from left side to line it up more with message bar
+  // - when "send" -> "sending...", the whole thing gets fucked. Need to fix that.
 
   return (
     <form
@@ -34,7 +44,8 @@ export default function SendMessage({ sendMessage, isPending }: SendMessageProps
     >
       <input
         type="text"
-        className="flex-1 rounded border px-3 py-2 focus:border-purple-400 focus:outline-none text-black"
+        ref={inputRef}
+        className="flex-3/4 rounded border px-3 py-2 focus:border-purple-400 focus:outline-none text-black"
         placeholder="Type your message…"
         value={content}
         onChange={(e) => setContent(e.target.value)}

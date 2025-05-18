@@ -9,6 +9,7 @@ export const messages = createTable(
   (d) => ({
     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
     content: d.varchar({ length: 256 }).notNull(),
+    commandResult: d.jsonb(),
     createdById: d
       .varchar({ length: 255 })
       .notNull()

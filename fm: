@@ -1,18 +1,9 @@
 
 import type { RouterOutputs } from "@/trpc/react";
 import React from "react";
-import { CommandResultDisplay } from "./command-result";
-
-// !s <threshold> <modifier>
-// we will display threshold and modifier
-// modify the roll, not the threshold
-// meet or beat (lower in this case)
-// green on success, red on failure
-// bright green or bright red for crit
-// meeting the threehold exactly is a crit success
 
 export function Message({ message }:
-  { message: Exclude<RouterOutputs["message"]["getMessages"], null>[number] }) {
+  { message: RouterOutputs["message"]["getMessages"][number] }) {
   const avatar =
     message.user.image ||
     `https://ui-avatars.com/api/?name=${encodeURIComponent(
@@ -32,22 +23,15 @@ export function Message({ message }:
             {message.user.name || message.user.email}
           </span>
           <span className="text-xs text-gray-400">
-            {
-              new Date(message.createdAt).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            }
+            { new Date(message.createdAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           </span>
         </div>
         <div className="text-black mt-1">
           {message.content}
         </div>
-        {message.commandResult && (
-          <CommandResultDisplay
-            commandResult={message.commandResult}
-          />
-        )}
       </div>
     </div>
   );

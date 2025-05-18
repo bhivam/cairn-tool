@@ -3,18 +3,17 @@ import Link from "next/link";
 import { auth } from "@/server/auth";
 import { HydrateClient } from "@/trpc/server";
 import MessageBar from "./components/message-bar";
+import Canvas from "./components/canvas";
 
 export default async function Home() {
   const session = await auth();
 
-  if (!session?.user) {
-    return <>Error</>
-  }
-
   return (
     <HydrateClient>
-      <main className="flex flex-col h-screen bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
-        <div className="flex items-center justify-between gap-12 px-[5vw] py-[2vh]">
+      <main className="flex flex-col h-screen text-white">
+        <div
+          className="flex items-center justify-between gap-12 px-[1vw] py-[2vh] bg-gradient-to-b from-[#2e026d] to-[#15162c]"
+        >
           <div className="flex items-end gap-4">
             <h1 className="text-5xl font-extrabold">
               Cairn1
@@ -33,9 +32,18 @@ export default async function Home() {
             </Link>
           </div>
         </div>
-        <div className="h-full overflow-y-auto">
-          <MessageBar />
-        </div>
+        {
+          session ?
+            <div className="flex h-full overflow-y-auto">
+              <div className="basis-3/4 flex-auto">
+                <Canvas />
+              </div>
+              <div className="basis-1/4 flex-auto">
+                <MessageBar />
+              </div>
+            </div> :
+            null
+        }
       </main>
     </HydrateClient>
   );

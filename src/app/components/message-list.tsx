@@ -35,8 +35,9 @@ export default function MessageList({
     .with([false, false], () => (
       <div className="space-y-2 p-4">
         {messages && messages.length > 0 ? (
-          messages.map(message => <Message message={message} />)
-        ) : (
+          messages.map(message =>
+            <Message key={message.id} message={message} />
+          )) : (
           <div className="text-gray-400">No messages yet.</div>
         )}
         <div ref={(el) => { dummyDiv.current = el }}></div>
