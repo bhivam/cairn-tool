@@ -6,7 +6,7 @@ import {
   OrthographicCamera,
   useTexture,
 } from "@react-three/drei";
-import { MOUSE, TOUCH } from "three";
+import { MOUSE, NoToneMapping, SRGBColorSpace, TOUCH } from "three";
 import { useEffect } from "react";
 
 function MapLayer({ textureUrl }: { textureUrl: string }) {
@@ -16,6 +16,8 @@ function MapLayer({ textureUrl }: { textureUrl: string }) {
   } = useThree();
 
   const texture = useTexture(textureUrl);
+  texture.colorSpace = SRGBColorSpace;
+
   const image = texture.image as HTMLImageElement | undefined;
   const [w, h] = [image?.width ?? 0, image?.height ?? 0];
   const aspect = w / h;
@@ -40,7 +42,13 @@ function MapLayer({ textureUrl }: { textureUrl: string }) {
 export default function InteractiveMap() {
   return (
     <div className="h-full w-full">
-      <Canvas orthographic>
+      <Canvas
+        orthographic
+        onCreated={({ gl }) => {
+          gl.outputColorSpace = SRGBColorSpace;
+          gl.toneMapping = NoToneMapping;
+        }}
+      >
         <OrthographicCamera makeDefault position={[0, 0, 10]} />
         <OrbitControls
           enableRotate={false}
