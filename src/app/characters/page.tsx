@@ -9,8 +9,8 @@ export default function CharactersPage() {
 
   const { data: characters, refetch } = api.character.list.useQuery();
   const deleteCharacter = api.character.delete.useMutation({
-    onSuccess: () => {
-      refetch();
+    onSuccess: async () => {
+      await refetch();
       setDeleteConfirm(null);
     },
   });

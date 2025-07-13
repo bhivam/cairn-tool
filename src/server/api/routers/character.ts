@@ -1,8 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { characters, characterStats, characterClasses, weapons, inventorySlots, coinPurses, bagTypes, spells, scrolls, potions } from "@/server/db/schema";
-import { eq, and } from "drizzle-orm";
-import { rollStats, rollHP, rollAC, rollStartingGold, characterClasses as classData } from "@/server/db/seed";
+import { characters, characterStats, characterClasses, weapons, coinPurses } from "@/server/db/schema";
+import { eq } from "drizzle-orm";
 
 // Zod schemas for validation
 const createCharacterSchema = z.object({
@@ -36,47 +35,7 @@ const statSchema = z.object({
   wisdomProgress: z.number().min(0).max(20),
 });
 
-const inventorySlotSchema = z.object({
-  slotType: z.enum(["hand", "pocket", "belt", "bag", "negligence"]),
-  slotNumber: z.number().min(1),
-  itemName: z.string().max(255).optional(),
-  itemDescription: z.string().optional(),
-  quantity: z.number().min(1).default(1),
-  isEquipped: z.boolean().default(false),
-});
 
-const coinPurseSchema = z.object({
-  gold: z.number().min(0),
-  silver: z.number().min(0),
-  copper: z.number().min(0),
-  platinum: z.number().min(0),
-});
-
-const bagTypeSchema = z.object({
-  bagName: z.string().min(1).max(100),
-  slotCount: z.number().min(0),
-  location: z.string().max(100).optional(),
-});
-
-const spellSchema = z.object({
-  name: z.string().min(1).max(255),
-  level: z.number().min(0),
-  school: z.string().max(100).optional(),
-  description: z.string().optional(),
-  isPrepared: z.boolean().default(false),
-});
-
-const scrollSchema = z.object({
-  spellName: z.string().min(1).max(255),
-  level: z.number().min(0),
-  quantity: z.number().min(1).default(1),
-});
-
-const potionSchema = z.object({
-  name: z.string().min(1).max(255),
-  effect: z.string().optional(),
-  quantity: z.number().min(1).default(1),
-});
 
 export const characterRouter = createTRPCRouter({
   // Create a new character

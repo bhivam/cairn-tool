@@ -65,10 +65,10 @@ export default function CharacterCreationWizard({ onComplete }: CharacterCreatio
       const [vit, dex, wis, cha] = result.stats;
       setStatsData(prev => ({
         ...prev,
-        vit: vit || 0,
-        dex: dex || 0,
-        wis: wis || 0,
-        cha: cha || 0,
+        vit: vit ?? 0,
+        dex: dex ?? 0,
+        wis: wis ?? 0,
+        cha: cha ?? 0,
       }));
     },
   });
@@ -122,15 +122,7 @@ export default function CharacterCreationWizard({ onComplete }: CharacterCreatio
     rollStats.mutate({ characterId });
   };
 
-  const handleHPRoll = () => {
-    if (!characterId || !selectedClass) return;
-    rollHP.mutate({ characterId, className: selectedClass });
-  };
 
-  const handleACRoll = () => {
-    if (!characterId || !selectedClass) return;
-    rollAC.mutate({ characterId, className: selectedClass });
-  };
 
   const handleClassSelect = (className: string) => {
     setSelectedClass(className);

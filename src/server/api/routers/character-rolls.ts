@@ -303,9 +303,9 @@ export const characterRollsRouter = createTRPCRouter({
       
       return {
         equipment,
-        weapons: classInfo?.startingWeapons || [],
-        startingHP: classInfo?.startingHP || 4,
-        startingAC: classInfo?.startingAC || 1,
+        weapons: classInfo?.startingWeapons ?? [],
+        startingHP: classInfo?.startingHP ?? 4,
+        startingAC: classInfo?.startingAC ?? 1,
       };
     }),
 }); 

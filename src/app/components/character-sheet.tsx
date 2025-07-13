@@ -12,13 +12,13 @@ export default function CharacterSection() {
   // Fetch all characters for the user
   const { data: characters, refetch } = api.character.list.useQuery();
   const deleteCharacter = api.character.delete.useMutation({
-    onSuccess: () => {
-      refetch();
+    onSuccess: async () => {
+      await refetch();
     },
   });
 
   // Fetch selected character details
-  const { data: selectedCharacter, refetch: refetchSelected } = api.character.get.useQuery(
+  const { data: selectedCharacter } = api.character.get.useQuery(
     { id: selectedCharacterId ?? 0 },
     { enabled: !!selectedCharacterId }
   );
@@ -72,9 +72,9 @@ export default function CharacterSection() {
           </button>
         </div>
         <CharacterCreationWizard
-          onComplete={() => {
+          onComplete={async () => {
             setMode("list");
-            refetch();
+            await refetch();
           }}
         />
       </div>
