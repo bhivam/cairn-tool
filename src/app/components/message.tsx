@@ -38,6 +38,8 @@ export function Message({ message }:
           {message.content}
         </div>
         {
+          // TODO add a view calculation button that shows details
+          // make it output
           match(message.commandResult)
             .with(
               { type: "roll" },
