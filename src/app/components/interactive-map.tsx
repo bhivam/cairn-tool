@@ -4,6 +4,7 @@ import { Canvas, useThree } from "@react-three/fiber";
 import {
   OrbitControls,
   OrthographicCamera,
+  PerspectiveCamera,
   useTexture,
 } from "@react-three/drei";
 import { MOUSE, NoToneMapping, SRGBColorSpace, TOUCH } from "three";
@@ -43,7 +44,6 @@ export default function InteractiveMap() {
   return (
     <div className="h-full w-full">
       <Canvas
-        orthographic
         onCreated={({ gl }) => {
           gl.outputColorSpace = SRGBColorSpace;
           gl.toneMapping = NoToneMapping;
@@ -63,7 +63,8 @@ export default function InteractiveMap() {
         />
         <MapLayer textureUrl={"/map.png"} />
         <MapLayer textureUrl={"/legend.png"} />
-        {/* <MapLayer textureUrl={"/territories.png"} /> */}
+        <MapLayer textureUrl={"/labels.png"} />
+        <MapLayer textureUrl={"/settlements.png"} />
       </Canvas>
     </div>
   );
