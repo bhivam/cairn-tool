@@ -16,7 +16,7 @@ export function Message({
     )}&background=5865F2&color=fff`;
 
   return (
-    <div className="hover:bg-muted/60 flex items-start gap-3 px-4 py-2 transition-colors">
+    <div className="flex items-start gap-3 px-4 py-2 transition-colors">
       <img
         src={avatar}
         alt={message.user.email}

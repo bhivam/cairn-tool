@@ -20,7 +20,7 @@ export default function CharacterSection() {
   );
 
   return (
-    <div className="bg-card border-border flex h-full flex-col overflow-hidden rounded-lg border">
+    <div className="bg-card border-border flex h-full flex-col overflow-hidden border-r">
       {match({ mode, character })
         // 1) LIST VIEW
         .with({ mode: "list" }, () => (
