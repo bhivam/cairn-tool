@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { characters, characterStats, characterClasses, weapons, coinPurses } from "@/server/db/schema";
+import {
+  characters,
+  characterStats,
+  characterClasses,
+  weapons,
+  coinPurses,
+} from "@/server/db/schema";
 import { eq } from "drizzle-orm";
 
 // Zod schemas for validation
@@ -34,8 +40,6 @@ const statSchema = z.object({
   spellCastingLevel: z.number().min(0),
   wisdomProgress: z.number().min(0).max(20),
 });
-
-
 
 export const characterRouter = createTRPCRouter({
   // Create a new character
@@ -87,7 +91,6 @@ export const characterRouter = createTRPCRouter({
       return character;
     }),
 
-  // Get all characters for the current user
   list: protectedProcedure.query(async ({ ctx }) => {
     return await ctx.db.query.characters.findMany({
       where: eq(characters.userId, ctx.session.user.id),
@@ -138,10 +141,12 @@ export const characterRouter = createTRPCRouter({
 
   // Update a character
   update: protectedProcedure
-    .input(z.object({
-      id: z.number(),
-      data: updateCharacterSchema,
-    }))
+    .input(
+      z.object({
+        id: z.number(),
+        data: updateCharacterSchema,
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       // Check if character exists and belongs to user
       const existingCharacter = await ctx.db.query.characters.findFirst({
@@ -170,10 +175,12 @@ export const characterRouter = createTRPCRouter({
 
   // Update character stats
   updateStats: protectedProcedure
-    .input(z.object({
-      characterId: z.number(),
-      stats: statSchema,
-    }))
+    .input(
+      z.object({
+        characterId: z.number(),
+        stats: statSchema,
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       // Check if character exists and belongs to user
       const existingCharacter = await ctx.db.query.characters.findFirst({
@@ -220,11 +227,13 @@ export const characterRouter = createTRPCRouter({
 
   // Add a class to a character
   addClass: protectedProcedure
-    .input(z.object({
-      characterId: z.number(),
-      className: z.string().min(1).max(100),
-      level: z.number().min(1).default(1),
-    }))
+    .input(
+      z.object({
+        characterId: z.number(),
+        className: z.string().min(1).max(100),
+        level: z.number().min(1).default(1),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       // Check if character exists and belongs to user
       const existingCharacter = await ctx.db.query.characters.findFirst({
@@ -253,10 +262,12 @@ export const characterRouter = createTRPCRouter({
 
   // Remove a class from a character
   removeClass: protectedProcedure
-    .input(z.object({
-      characterId: z.number(),
-      classId: z.number(),
-    }))
+    .input(
+      z.object({
+        characterId: z.number(),
+        classId: z.number(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       // Check if character exists and belongs to user
       const existingCharacter = await ctx.db.query.characters.findFirst({
@@ -271,20 +282,24 @@ export const characterRouter = createTRPCRouter({
         throw new Error("Unauthorized");
       }
 
-      await ctx.db.delete(characterClasses).where(eq(characterClasses.id, input.classId));
+      await ctx.db
+        .delete(characterClasses)
+        .where(eq(characterClasses.id, input.classId));
       return { success: true };
     }),
 
   // Add a weapon to a character
   addWeapon: protectedProcedure
-    .input(z.object({
-      characterId: z.number(),
-      name: z.string().min(1).max(100),
-      damageDie: z.string().min(1).max(20),
-      proficiency: z.string().min(1).max(50),
-      traits: z.string().optional(),
-      equipped: z.boolean().default(false),
-    }))
+    .input(
+      z.object({
+        characterId: z.number(),
+        name: z.string().min(1).max(100),
+        damageDie: z.string().min(1).max(20),
+        proficiency: z.string().min(1).max(50),
+        traits: z.string().optional(),
+        equipped: z.boolean().default(false),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       // Check if character exists and belongs to user
       const existingCharacter = await ctx.db.query.characters.findFirst({
@@ -313,4 +328,4 @@ export const characterRouter = createTRPCRouter({
 
       return newWeapon;
     }),
-}); 
+});

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import MessageList from "./message-list";
 import SendMessage from "./send-message";
@@ -21,18 +21,17 @@ export default function MessageBar() {
 
   const createMessageMutation = api.message.create.useMutation({
     onMutate: async ({ content }) => {
-      const previous =
-        queryClient.getQueryData<RouterOutputs["message"]["getMessages"]>(
-          [["message", "getMessages"], { type: 'query' }]
-        );
+      const previous = queryClient.getQueryData<
+        RouterOutputs["message"]["getMessages"]
+      >([["message", "getMessages"], { type: "query" }]);
 
-      const user: RouterOutputs["message"]["getMessages"][number]['user'] = {
+      const user: RouterOutputs["message"]["getMessages"][number]["user"] = {
         id: session.data!.user.id,
         name: session.data!.user.name ?? "",
         email: session.data!.user.email ?? "",
         emailVerified: null,
-        image: session.data!.user.image ?? ""
-      }
+        image: session.data!.user.image ?? "",
+      };
 
       const newMessage: RouterOutputs["message"]["getMessages"][number] = {
         id: optimisticId.current++,
@@ -45,8 +44,8 @@ export default function MessageBar() {
       };
 
       queryClient.setQueryData<RouterOutputs["message"]["getMessages"]>(
-        [["message", "getMessages"], { type: 'query' }],
-        (old) => (old ? [...old, newMessage] : [newMessage])
+        [["message", "getMessages"], { type: "query" }],
+        (old) => (old ? [...old, newMessage] : [newMessage]),
       );
       return { previous };
     },
@@ -54,35 +53,29 @@ export default function MessageBar() {
       if (context?.previous)
         queryClient.setQueryData(
           [["message", "getMessages"], { type: "query" }],
-          context.previous
+          context.previous,
         );
     },
   });
 
   // TODO some sort of error handling for broken connections
-  api.message.messageUpdates.useSubscription(
-    undefined,
-    {
-      onData: message => {
-        if (message.createdById !== session.data!.user.id) {
-          queryClient.setQueryData<RouterOutputs["message"]["getMessages"]>(
-            [["message", "getMessages"], { type: 'query' }],
-            (old) => (old ? [...old, message] : [message])
-          );
-          if (!isAtBottom)
-            setShowGoToCurrent(true);
-        }
-        else {
-          queryClient.setQueryData<RouterOutputs["message"]["getMessages"]>(
-            [["message", "getMessages"], { type: 'query' }],
-            (old) => (old ? [...(old.slice(0, old.length - 1)), message] : [message])
-          )
-        }
-
-      },
-    }
-  )
-
+  api.message.messageUpdates.useSubscription(undefined, {
+    onData: (message) => {
+      if (message.createdById !== session.data!.user.id) {
+        queryClient.setQueryData<RouterOutputs["message"]["getMessages"]>(
+          [["message", "getMessages"], { type: "query" }],
+          (old) => (old ? [...old, message] : [message]),
+        );
+        if (!isAtBottom) setShowGoToCurrent(true);
+      } else {
+        queryClient.setQueryData<RouterOutputs["message"]["getMessages"]>(
+          [["message", "getMessages"], { type: "query" }],
+          (old) =>
+            old ? [...old.slice(0, old.length - 1), message] : [message],
+        );
+      }
+    },
+  });
 
   function scrollToBottom(behavior: ScrollBehavior = "smooth") {
     dummyDiv.current?.scrollIntoView({ behavior });
@@ -115,19 +108,16 @@ export default function MessageBar() {
   useEffect(() => {
     if (!getMessagesQuery.data) return;
     if (isAtBottom) scrollToBottom("instant");
-  }, [
-    getMessagesQuery.data ? getMessagesQuery.data.length : 0,
-  ]);
+  }, [getMessagesQuery.data ? getMessagesQuery.data.length : 0]);
 
   useEffect(() => {
     if (!getMessagesQuery.data) return;
-    if (isAtBottom)
-      scrollToBottom("instant");
+    if (isAtBottom) scrollToBottom("instant");
   }, [
     getMessagesQuery.data
       ? getMessagesQuery.data[getMessagesQuery.data.length - 1]
       : null,
-  ])
+  ]);
 
   function handleGoToCurrent() {
     scrollToBottom("smooth");
@@ -135,10 +125,10 @@ export default function MessageBar() {
   }
 
   return (
-    <div className="flex flex-col h-full w-full bg-white">
+    <div className="bg-card text-foreground border-border flex h-full w-full flex-col border-l">
       <div
         ref={scrollableDiv}
-        className="flex-1 min-h-0 overflow-y-scroll relative"
+        className="relative min-h-0 flex-1 overflow-y-scroll"
         style={{ position: "relative" }}
       >
         <MessageList
@@ -161,7 +151,7 @@ export default function MessageBar() {
           >
             <button
               onClick={handleGoToCurrent}
-              className="px-4 py-2 bg-blue-500 text-white rounded shadow"
+              className="bg-primary text-primary-foreground hover:bg-primary/80 rounded px-4 py-2 shadow transition"
               style={{
                 pointerEvents: "auto",
               }}
@@ -170,12 +160,11 @@ export default function MessageBar() {
             </button>
           </div>
         )}
-
       </div>
       <SendMessage
         sendMessage={sendMessage}
         isPending={createMessageMutation.isPending}
       />
-    </div >
+    </div>
   );
 }

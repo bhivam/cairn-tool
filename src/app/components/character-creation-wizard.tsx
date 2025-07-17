@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import { api } from "@/trpc/react";
-import { commonRegions, commonReligions, commonLanguages } from "@/server/db/seed";
+import { commonRegions } from "@/server/db/seed";
 
-type Step = "identity" | "stats" | "class" | "equipment" | "review";
+type Step = "identity" | "stats" | "class" | "review";
 
 interface CharacterData {
   name: string;
-  portrait?: string;
   region: string;
   status: string;
   religion: string;
@@ -16,22 +15,12 @@ interface CharacterData {
   notes: string;
 }
 
-interface StatsData {
-  vit: number;
-  dex: number;
-  wis: number;
-  cha: number;
-  hp: number;
-  ac: number;
-  speed: number;
-}
-
-interface CharacterCreationWizardProps {
+export default function CharacterCreationWizard({
+  onComplete,
+}: {
   onComplete?: () => void;
-}
-
-export default function CharacterCreationWizard({ onComplete }: CharacterCreationWizardProps) {
-  const [currentStep, setCurrentStep] = useState<Step>("identity");
+}) {
+  const [step, setStep] = useState<Step>("identity");
   const [characterData, setCharacterData] = useState<CharacterData>({
     name: "",
     region: "",
@@ -40,7 +29,7 @@ export default function CharacterCreationWizard({ onComplete }: CharacterCreatio
     language: "",
     notes: "",
   });
-  const [statsData, setStatsData] = useState<StatsData>({
+  const [stats, setStats] = useState({
     vit: 0,
     dex: 0,
     wis: 0,
@@ -49,444 +38,323 @@ export default function CharacterCreationWizard({ onComplete }: CharacterCreatio
     ac: 0,
     speed: 30,
   });
-  const [selectedClass, setSelectedClass] = useState("");
-  const [characterId, setCharacterId] = useState<number | null>(null);
+  const [selectedClass, setSelectedClass] = useState<string>("");
 
-  // API calls
-  const createCharacter = api.character.create.useMutation({
-    onSuccess: (character) => {
-      setCharacterId(character.id);
-      setCurrentStep("stats");
-    },
+  // API mutations/queries
+  const createChar = api.character.create.useMutation({
+    onSuccess: () => setStep("stats"),
   });
-
   const rollStats = api.characterRolls.rollStats.useMutation({
-    onSuccess: (result) => {
-      const [vit, dex, wis, cha] = result.stats;
-      setStatsData(prev => ({
-        ...prev,
-        vit: vit ?? 0,
-        dex: dex ?? 0,
-        wis: wis ?? 0,
-        cha: cha ?? 0,
-      }));
-    },
+    onSuccess: (res) =>
+      setStats((s) => ({
+        ...s,
+        vit: res.stats[0]!,
+        dex: res.stats[1]!,
+        wis: res.stats[2]!,
+        cha: res.stats[3]!,
+      })),
   });
-
   const rollHP = api.characterRolls.rollHP.useMutation({
-    onSuccess: (result) => {
-      setStatsData(prev => ({
-        ...prev,
-        hp: result.hp,
-      }));
-    },
+    onSuccess: (res) => setStats((s) => ({ ...s, hp: res.hp })),
   });
-
   const rollAC = api.characterRolls.rollAC.useMutation({
-    onSuccess: (result) => {
-      setStatsData(prev => ({
-        ...prev,
-        ac: result.ac,
-      }));
-    },
+    onSuccess: (res) => setStats((s) => ({ ...s, ac: res.ac })),
   });
-
-  const generateEquipment = api.characterRolls.generateStartingEquipment.useMutation({
+  const genEquip = api.characterRolls.generateStartingEquipment.useMutation({
     onSuccess: () => {
-      setCurrentStep("review");
-      if (onComplete) onComplete();
+      setStep("review");
+      onComplete?.();
     },
   });
+  const classesQ = api.characterRolls.getAvailableClasses.useQuery();
 
-  const getClasses = api.characterRolls.getAvailableClasses.useQuery();
-
-  const handleIdentitySubmit = (e: React.FormEvent) => {
+  // Handlers
+  const handleIdentity = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!characterData.name.trim()) {
-      alert("Name is required");
-      return;
-    }
-
-    createCharacter.mutate({
-      name: characterData.name.trim(),
-      region: characterData.region.trim() || undefined,
-      status: characterData.status.trim() || undefined,
-      religion: characterData.religion.trim() || undefined,
-      language: characterData.language.trim() || undefined,
-      notes: characterData.notes.trim() || undefined,
+    if (!characterData.name.trim()) return;
+    createChar.mutate({
+      name: characterData.name,
+      region: characterData.region || undefined,
+      status: characterData.status || undefined,
+      religion: characterData.religion || undefined,
+      language: characterData.language || undefined,
+      notes: characterData.notes || undefined,
     });
   };
-
-  const handleStatsRoll = () => {
-    if (!characterId) return;
-    rollStats.mutate({ characterId });
+  const handleRollStats = () => rollStats.mutate();
+  const handleSelectClass = (cls: string) => {
+    setSelectedClass(cls);
+    rollHP.mutate({ className: cls });
+    rollAC.mutate({ className: cls });
   };
+  const handleGenEquip = () =>
+    selectedClass && genEquip.mutate({ className: selectedClass });
 
-
-
-  const handleClassSelect = (className: string) => {
-    setSelectedClass(className);
-    // Auto-roll HP and AC when class is selected
-    if (characterId) {
-      rollHP.mutate({ characterId, className });
-      rollAC.mutate({ characterId, className });
-    }
-  };
-
-  const handleEquipmentGenerate = () => {
-    if (!characterId || !selectedClass) return;
-    generateEquipment.mutate({ characterId, className: selectedClass });
-  };
-
-  const renderIdentityStep = () => (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">Character Identity</h2>
-      
-      <form onSubmit={handleIdentitySubmit} className="space-y-4">
-        <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-            Name *
-          </label>
-          <input
-            type="text"
-            id="name"
-            value={characterData.name}
-            onChange={(e) => setCharacterData(prev => ({ ...prev, name: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter character name"
-            required
-          />
-        </div>
-
-        <div>
-          <label htmlFor="region" className="block text-sm font-medium text-gray-700 mb-1">
-            Region
-          </label>
-          <select
-            id="region"
-            value={characterData.region}
-            onChange={(e) => setCharacterData(prev => ({ ...prev, region: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Select a region</option>
-            {commonRegions.map(region => (
-              <option key={region} value={region}>{region}</option>
-            ))}
-            <option value="custom">Custom...</option>
-          </select>
-          {characterData.region === "custom" && (
-            <input
-              type="text"
-              placeholder="Enter custom region"
-              className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              onChange={(e) => setCharacterData(prev => ({ ...prev, region: e.target.value }))}
-            />
-          )}
-        </div>
-
-        <div>
-          <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-            Status
-          </label>
-          <input
-            type="text"
-            id="status"
-            value={characterData.status}
-            onChange={(e) => setCharacterData(prev => ({ ...prev, status: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter status"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="religion" className="block text-sm font-medium text-gray-700 mb-1">
-            Religion
-          </label>
-          <select
-            id="religion"
-            value={characterData.religion}
-            onChange={(e) => setCharacterData(prev => ({ ...prev, religion: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Select a religion</option>
-            {commonReligions.map(religion => (
-              <option key={religion} value={religion}>{religion}</option>
-            ))}
-            <option value="custom">Custom...</option>
-          </select>
-          {characterData.religion === "custom" && (
-            <input
-              type="text"
-              placeholder="Enter custom religion"
-              className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              onChange={(e) => setCharacterData(prev => ({ ...prev, religion: e.target.value }))}
-            />
-          )}
-        </div>
-
-        <div>
-          <label htmlFor="language" className="block text-sm font-medium text-gray-700 mb-1">
-            Language
-          </label>
-          <select
-            id="language"
-            value={characterData.language}
-            onChange={(e) => setCharacterData(prev => ({ ...prev, language: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Select a language</option>
-            {commonLanguages.map(language => (
-              <option key={language} value={language}>{language}</option>
-            ))}
-            <option value="custom">Custom...</option>
-          </select>
-          {characterData.language === "custom" && (
-            <input
-              type="text"
-              placeholder="Enter custom language"
-              className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              onChange={(e) => setCharacterData(prev => ({ ...prev, language: e.target.value }))}
-            />
-          )}
-        </div>
-
-        <div>
-          <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
-            Notes
-          </label>
-          <textarea
-            id="notes"
-            value={characterData.notes}
-            onChange={(e) => setCharacterData(prev => ({ ...prev, notes: e.target.value }))}
-            rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter notes"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={createCharacter.isPending}
-          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {createCharacter.isPending ? "Creating..." : "Create Character"}
-        </button>
-      </form>
-    </div>
-  );
-
-  const renderStatsStep = () => (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">Roll Statistics</h2>
-      
-      <div className="space-y-4">
-        <div className="text-center">
-          <button
-            onClick={handleStatsRoll}
-            disabled={rollStats.isPending}
-            className="bg-green-600 text-white py-2 px-6 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {rollStats.isPending ? "Rolling..." : "Roll Stats (3d6)"}
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="text-center p-4 bg-gray-100 rounded-md">
-            <div className="text-sm text-gray-600">VIT</div>
-            <div className="text-2xl font-bold">{statsData.vit}</div>
-          </div>
-          <div className="text-center p-4 bg-gray-100 rounded-md">
-            <div className="text-sm text-gray-600">DEX</div>
-            <div className="text-2xl font-bold">{statsData.dex}</div>
-          </div>
-          <div className="text-center p-4 bg-gray-100 rounded-md">
-            <div className="text-sm text-gray-600">WIS</div>
-            <div className="text-2xl font-bold">{statsData.wis}</div>
-          </div>
-          <div className="text-center p-4 bg-gray-100 rounded-md">
-            <div className="text-sm text-gray-600">CHA</div>
-            <div className="text-2xl font-bold">{statsData.cha}</div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-blue-100 rounded-md">
-            <div className="text-sm text-gray-600">HP</div>
-            <div className="text-xl font-bold">{statsData.hp}</div>
-          </div>
-          <div className="text-center p-4 bg-blue-100 rounded-md">
-            <div className="text-sm text-gray-600">AC</div>
-            <div className="text-xl font-bold">{statsData.ac}</div>
-          </div>
-          <div className="text-center p-4 bg-blue-100 rounded-md">
-            <div className="text-sm text-gray-600">Speed</div>
-            <div className="text-xl font-bold">{statsData.speed}</div>
-          </div>
-        </div>
-
-        <button
-          onClick={() => setCurrentStep("class")}
-          disabled={statsData.vit === 0}
-          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Continue to Class Selection
-        </button>
-      </div>
-    </div>
-  );
-
-  const renderClassStep = () => (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">Select Class</h2>
-      
-      <div className="space-y-4">
-        {getClasses.data?.map((classInfo) => (
-          <div
-            key={classInfo.name}
-            className={`p-4 border-2 rounded-md cursor-pointer transition-colors ${
-              selectedClass === classInfo.name
-                ? "border-blue-500 bg-blue-50"
-                : "border-gray-200 hover:border-gray-300"
-            }`}
-            onClick={() => handleClassSelect(classInfo.name)}
-          >
-            <h3 className="font-bold text-lg">{classInfo.name}</h3>
-            <div className="text-sm text-gray-600">
-              Starting HP: {classInfo.startingHP} | Starting AC: {classInfo.startingAC}
-            </div>
-            <div className="text-sm text-gray-500 mt-1">
-              Weapons: {classInfo.startingWeapons.map(w => w.name).join(", ")}
-            </div>
-          </div>
-        ))}
-
-        {selectedClass && (
-          <button
-            onClick={handleEquipmentGenerate}
-            disabled={generateEquipment.isPending}
-            className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {generateEquipment.isPending ? "Generating..." : "Generate Starting Equipment"}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderReviewStep = () => (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">Character Review</h2>
-      
-      <div className="space-y-4">
-        <div className="bg-gray-50 p-4 rounded-md">
-          <h3 className="font-bold text-lg mb-2">{characterData.name}</h3>
-          <div className="text-sm text-gray-600">
-            <div>Region: {characterData.region || "None"}</div>
-            <div>Status: {characterData.status || "None"}</div>
-            <div>Religion: {characterData.religion || "None"}</div>
-            <div>Language: {characterData.language || "None"}</div>
-          </div>
-        </div>
-
-        <div className="bg-gray-50 p-4 rounded-md">
-          <h3 className="font-bold text-lg mb-2">Statistics</h3>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>VIT: {statsData.vit}</div>
-            <div>DEX: {statsData.dex}</div>
-            <div>WIS: {statsData.wis}</div>
-            <div>CHA: {statsData.cha}</div>
-            <div>HP: {statsData.hp}</div>
-            <div>AC: {statsData.ac}</div>
-          </div>
-        </div>
-
-        <div className="bg-gray-50 p-4 rounded-md">
-          <h3 className="font-bold text-lg mb-2">Class</h3>
-          <div className="text-sm">{selectedClass}</div>
-        </div>
-
-        <div className="text-center">
-          <div className="text-green-600 font-bold mb-4">
-            Character created successfully!
-          </div>
-          <button
-            onClick={() => window.location.href = "/"}
-            className="bg-blue-600 text-white py-2 px-6 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            Return to Main Page
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderCurrentStep = () => {
-    switch (currentStep) {
-      case "identity":
-        return renderIdentityStep();
-      case "stats":
-        return renderStatsStep();
-      case "class":
-        return renderClassStep();
-      case "review":
-        return renderReviewStep();
-      default:
-        return renderIdentityStep();
-    }
-  };
+  // Progress circles
+  const steps: Step[] = ["identity", "stats", "class", "review"];
+  const idx = steps.indexOf(step);
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
-      <div className="container mx-auto">
-        <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">
-          Character Creation Wizard
-        </h1>
-        
-        {/* Progress indicator */}
-        <div className="max-w-md mx-auto mb-8">
-          <div className="flex items-center justify-between">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-              currentStep === "identity" ? "bg-blue-600 text-white" : "bg-gray-300 text-gray-600"
-            }`}>
-              1
-            </div>
-            <div className={`flex-1 h-1 mx-2 ${
-              currentStep !== "identity" ? "bg-blue-600" : "bg-gray-300"
-            }`}></div>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-              currentStep === "stats" ? "bg-blue-600 text-white" : 
-              currentStep === "class" || currentStep === "review" ? "bg-blue-600 text-white" : "bg-gray-300 text-gray-600"
-            }`}>
-              2
-            </div>
-            <div className={`flex-1 h-1 mx-2 ${
-              currentStep === "class" || currentStep === "review" ? "bg-blue-600" : "bg-gray-300"
-            }`}></div>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-              currentStep === "class" ? "bg-blue-600 text-white" : 
-              currentStep === "review" ? "bg-blue-600 text-white" : "bg-gray-300 text-gray-600"
-            }`}>
-              3
-            </div>
-            <div className={`flex-1 h-1 mx-2 ${
-              currentStep === "review" ? "bg-blue-600" : "bg-gray-300"
-            }`}></div>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-              currentStep === "review" ? "bg-blue-600 text-white" : "bg-gray-300 text-gray-600"
-            }`}>
-              4
-            </div>
-          </div>
-          <div className="flex justify-between text-xs text-gray-500 mt-2">
-            <span>Identity</span>
-            <span>Stats</span>
-            <span>Class</span>
-            <span>Review</span>
-          </div>
-        </div>
+    <div className="bg-card border-border flex h-full flex-col overflow-hidden rounded-lg border">
+      {/* HEADER */}
+      <header className="border-border bg-background border-b px-4 py-3">
+        <h2 className="text-foreground text-lg font-bold">
+          Character Creation
+        </h2>
+      </header>
 
-        {renderCurrentStep()}
+      {/* PROGRESS */}
+      <div className="bg-background border-border border-b px-4 py-2">
+        <div className="flex items-center">
+          {steps.map((s, i) => (
+            <div key={s} className="flex items-center">
+              <div
+                className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${i <= idx ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+              >
+                {i + 1}
+              </div>
+              {i < steps.length - 1 && (
+                <div
+                  className={`mx-2 h-0.5 flex-1 ${i < idx ? "bg-primary" : "bg-muted"}`}
+                />
+              )}
+            </div>
+          ))}
+        </div>
       </div>
+
+      {/* CONTENT */}
+      <div className="bg-background flex-1 overflow-auto px-6 py-4">
+        {/* 1) IDENTITY */}
+        {step === "identity" && (
+          <form
+            onSubmit={handleIdentity}
+            className="mx-auto max-w-lg space-y-4"
+          >
+            <div>
+              <label
+                htmlFor="name"
+                className="text-foreground mb-1 block text-sm font-medium"
+              >
+                Name *
+              </label>
+              <input
+                id="name"
+                type="text"
+                value={characterData.name}
+                onChange={(e) =>
+                  setCharacterData((p) => ({ ...p, name: e.target.value }))
+                }
+                className="border-input bg-background text-foreground focus:ring-primary w-full rounded border px-3 py-2 focus:ring-2 focus:outline-none"
+                placeholder="Character name"
+                required
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="region"
+                className="text-foreground mb-1 block text-sm font-medium"
+              >
+                Region
+              </label>
+              <select
+                id="region"
+                value={characterData.region}
+                onChange={(e) =>
+                  setCharacterData((p) => ({ ...p, region: e.target.value }))
+                }
+                className="border-input bg-background text-foreground focus:ring-primary w-full rounded border px-3 py-2 focus:ring-2 focus:outline-none"
+              >
+                <option value="">Select a region</option>
+                {commonRegions.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Status, Religion, Language, Notes similar */}
+            {["status", "religion", "language"].map((field) => (
+              <div key={field}>
+                <label
+                  htmlFor={field}
+                  className="text-foreground mb-1 block text-sm font-medium"
+                >
+                  {field.charAt(0).toUpperCase() + field.slice(1)}
+                </label>
+                <input
+                  id={field}
+                  type="text"
+                  value={(characterData as any)[field]}
+                  onChange={(e) =>
+                    setCharacterData((p) => ({
+                      ...p,
+                      [field]: e.target.value,
+                    }))
+                  }
+                  className="border-input bg-background text-foreground focus:ring-primary w-full rounded border px-3 py-2 focus:ring-2 focus:outline-none"
+                  placeholder={`Enter ${field}`}
+                />
+              </div>
+            ))}
+
+            <div>
+              <label
+                htmlFor="notes"
+                className="text-foreground mb-1 block text-sm font-medium"
+              >
+                Notes
+              </label>
+              <textarea
+                id="notes"
+                rows={3}
+                value={characterData.notes}
+                onChange={(e) =>
+                  setCharacterData((p) => ({ ...p, notes: e.target.value }))
+                }
+                className="border-input bg-background text-foreground focus:ring-primary w-full rounded border px-3 py-2 focus:ring-2 focus:outline-none"
+                placeholder="Enter any notes"
+              />
+            </div>
+          </form>
+        )}
+
+        {/* 2) STATS */}
+        {step === "stats" && (
+          <div className="mx-auto max-w-lg space-y-6">
+            <button
+              onClick={handleRollStats}
+              disabled={rollStats.isPending}
+              className="bg-primary text-primary-foreground hover:bg-primary/80 w-full rounded px-4 py-2 transition disabled:opacity-50"
+            >
+              {rollStats.isPending ? "Rolling..." : "Roll Stats"}
+            </button>
+            <div className="grid grid-cols-2 gap-4">
+              {(["vit", "dex", "wis", "cha"] as const).map((attr) => (
+                <div
+                  key={attr}
+                  className="bg-muted text-foreground rounded p-4 text-center"
+                >
+                  <div className="text-sm capitalize">{attr}</div>
+                  <div className="text-xl font-bold">
+                    {(stats as any)[attr]}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 3) CLASS */}
+        {step === "class" && (
+          <div className="mx-auto max-w-lg space-y-6">
+            {classesQ.data?.map((cls) => (
+              <div
+                key={cls.name}
+                onClick={() => handleSelectClass(cls.name)}
+                className={`cursor-pointer rounded border-2 p-4 transition ${
+                  selectedClass === cls.name
+                    ? "border-primary bg-primary/10"
+                    : "border-input bg-background hover:border-border"
+                } `}
+              >
+                <div className="text-foreground font-semibold">{cls.name}</div>
+                <div className="text-muted-foreground text-sm">
+                  HP {cls.startingHP} | AC {cls.startingAC}
+                </div>
+              </div>
+            ))}
+            <button
+              onClick={handleGenEquip}
+              disabled={!selectedClass || genEquip.isPending}
+              className="bg-primary text-primary-foreground hover:bg-primary/80 w-full rounded px-4 py-2 transition disabled:opacity-50"
+            >
+              {genEquip.isPending
+                ? "Generating…"
+                : "Generate Starting Equipment"}
+            </button>
+          </div>
+        )}
+
+        {/* 4) REVIEW */}
+        {step === "review" && (
+          <div className="mx-auto max-w-lg space-y-6">
+            <div className="bg-muted rounded p-4">
+              <div className="text-foreground mb-2 font-bold">
+                {characterData.name}
+              </div>
+              <div className="text-muted-foreground text-sm">
+                Region: {characterData.region || "None"}
+                <br />
+                Status: {characterData.status || "None"}
+              </div>
+            </div>
+            <div className="bg-muted rounded p-4">
+              <div className="text-foreground mb-2 font-bold">Stats</div>
+              <div className="text-foreground grid grid-cols-2 gap-2 text-sm">
+                {["vit", "dex", "wis", "cha", "hp", "ac"].map((k) => (
+                  <div key={k} className="capitalize">
+                    {k}: {(stats as any)[k]}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="text-center">
+              <button
+                onClick={() => onComplete?.()}
+                className="bg-primary text-primary-foreground hover:bg-primary/80 rounded px-6 py-2 transition"
+              >
+                Finish & Exit
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* FOOTER NAV */}
+      <footer className="border-border bg-background flex items-center justify-between border-t px-6 py-3">
+        {step !== "identity" ? (
+          <button
+            onClick={() =>
+              setStep((s) => steps[Math.max(0, steps.indexOf(s) - 1)])
+            }
+            className="text-primary hover:underline"
+          >
+            Back
+          </button>
+        ) : (
+          <div />
+        )}
+        {step === "identity" ? (
+          <button
+            onClick={handleIdentity}
+            disabled={createChar.isPending || !characterData.name.trim()}
+            className="bg-primary text-primary-foreground hover:bg-primary/80 rounded px-4 py-1 transition disabled:opacity-50"
+          >
+            {createChar.isPending ? "Creating…" : "Next"}
+          </button>
+        ) : step === "stats" ? (
+          <button
+            onClick={() => setStep("class")}
+            disabled={stats.vit === 0}
+            className="bg-primary text-primary-foreground hover:bg-primary/80 rounded px-4 py-1 transition disabled:opacity-50"
+          >
+            Next
+          </button>
+        ) : step === "class" ? (
+          <button
+            onClick={handleGenEquip}
+            disabled={!selectedClass || genEquip.isPending}
+            className="bg-primary text-primary-foreground hover:bg-primary/80 rounded px-4 py-1 transition disabled:opacity-50"
+          >
+            {genEquip.isPending ? "Generating…" : "Next"}
+          </button>
+        ) : (
+          <div />
+        )}
+      </footer>
     </div>
   );
-} 
+}

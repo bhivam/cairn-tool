@@ -13,39 +13,40 @@ export default function SaveResultDisplay({
     return match({ roll, threshold })
       .with({ roll: 20 }, () => ({
         resultText: "Critical Failure!",
-        rollClass: "text-red-500 font-extrabold",
-        resultClass: "text-red-500 font-semibold text-lg",
+        rollClass: "text-destructive font-extrabold",
+        resultClass: "text-destructive font-semibold text-lg",
       }))
       .when(
         ({ roll, threshold }) => roll + (modifier ?? 0) === threshold,
         () => ({
           resultText: "Critical Success!",
-          rollClass: "text-green-500 font-extrabold",
-          resultClass: "text-green-500 font-semibold text-lg",
-        })
+          rollClass: "text-success font-extrabold",
+          resultClass: "text-success font-semibold text-lg",
+        }),
       )
       .when(
         ({ roll, threshold }) => roll + (modifier ?? 0) < threshold,
         () => ({
           resultText: "Success",
-          rollClass: "text-green-700 font-bold text-3xl",
-          resultClass: "text-green-700 font-semibold text-lg",
-        })
+          rollClass: "text-success font-bold text-3xl",
+          resultClass: "text-success font-semibold text-lg",
+        }),
       )
       .otherwise(() => ({
         resultText: "Failure",
-        rollClass: "text-red-700 font-bold text-3xl",
-        resultClass: "text-red-700 font-semibold text-lg",
+        rollClass: "text-destructive font-bold text-3xl",
+        resultClass: "text-destructive font-semibold text-lg",
       }));
   }, [roll, threshold, modifier]);
 
   return (
-    <div className="mt-2 border border-gray-200 rounded px-4 py-3">
+    <div className="border-border bg-muted/40 mt-2 rounded border px-4 py-3">
       <div className="flex flex-col gap-1">
-        <span className={`text-3xl ${rollClass}`}>{roll + (modifier ?? 0)}</span>
+        <span className={`text-3xl ${rollClass}`}>
+          {roll + (modifier ?? 0)}
+        </span>
         <span className={resultClass}>{resultText}</span>
       </div>
     </div>
   );
 }
-

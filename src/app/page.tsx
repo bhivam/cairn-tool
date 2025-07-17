@@ -11,30 +11,32 @@ export default async function Home() {
 
   return (
     <HydrateClient>
-      <main className="flex h-screen flex-col text-white">
-        <div className="flex items-center justify-between gap-12 bg-gradient-to-b from-[#2e026d] to-[#15162c] px-[1vw] py-[2vh]">
+      <main className="bg-background text-foreground flex h-screen flex-col">
+        <div className="bg-primary border-border flex items-center justify-between gap-12 border-b px-[1vw] py-2">
           <div className="flex items-end gap-4">
-            <h1 className="text-5xl font-extrabold">Stele</h1>
+            <h1 className="text-primary-foreground text-5xl font-extrabold drop-shadow">
+              Stele
+            </h1>
           </div>
           <div></div>
           <div className="flex items-center gap-2">
             <Link
               href={session ? "/api/auth/signout" : "/api/auth/signin"}
-              className="rounded-full bg-white/10 px-10 py-3 font-semibold no-underline transition hover:bg-white/20"
+              className="bg-primary/10 hover:bg-primary/20 text-primary-foreground border-primary rounded-full border px-10 py-3 font-semibold no-underline transition"
             >
               {session ? "Sign out" : "Sign in"}
             </Link>
           </div>
         </div>
         {session ? (
-          <div className="flex h-full overflow-y-auto">
-            <div className="flex-auto basis-1/5">
+          <div className="bg-background flex h-full overflow-y-auto">
+            <div className="border-border bg-card flex-auto basis-1/5 border-r">
               <CharacterSheet />
             </div>
-            <div className="flex-auto basis-3/5 border-1 border-r-black border-l-black">
+            <div className="border-border bg-surface flex-auto basis-3/5 border-x">
               <InteractiveMap />
             </div>
-            <div className="flex-auto basis-1/5">
+            <div className="border-border bg-card flex-auto basis-1/5 border-l">
               <MessageBar />
             </div>
           </div>
