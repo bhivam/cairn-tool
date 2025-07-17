@@ -65,6 +65,7 @@ export default function InteractiveMap() {
         <MapLayer textureUrl={"/legend.png"} />
         <MapLayer textureUrl={"/settlements.png"} />
         <MapLayer textureUrl={"/labels.png"} />
+        <MapLayer textureUrl={"/landscape.png "} />
       </Canvas>
     </div>
   );
