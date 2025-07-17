@@ -8,8 +8,8 @@ import {
   coinPurses,
 } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
 
-// Zod schemas for validation
 const createCharacterSchema = z.object({
   name: z.string().min(1).max(255),
   portrait: z.string().optional(),
@@ -42,7 +42,6 @@ const statSchema = z.object({
 });
 
 export const characterRouter = createTRPCRouter({
-  // Create a new character
   create: protectedProcedure
     .input(createCharacterSchema)
     .mutation(async ({ ctx, input }) => {
@@ -55,10 +54,12 @@ export const characterRouter = createTRPCRouter({
         .returning();
 
       if (!character) {
-        throw new Error("Failed to create character");
+        throw new TRPCError({
+          message: "Failed to create character",
+          code: "INTERNAL_SERVER_ERROR",
+        });
       }
 
-      // Create default stats record
       await ctx.db.insert(characterStats).values({
         characterId: character.id,
         vitMax: 0,
@@ -79,7 +80,6 @@ export const characterRouter = createTRPCRouter({
         wisdomProgress: 0,
       });
 
-      // Create default coin purse
       await ctx.db.insert(coinPurses).values({
         characterId: character.id,
         gold: 0,
@@ -108,7 +108,6 @@ export const characterRouter = createTRPCRouter({
     });
   }),
 
-  // Get a specific character by ID
   get: protectedProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ ctx, input }) => {
@@ -131,7 +130,6 @@ export const characterRouter = createTRPCRouter({
         throw new Error("Character not found");
       }
 
-      // Check if the character belongs to the current user
       if (character.userId !== ctx.session.user.id) {
         throw new Error("Unauthorized");
       }
@@ -139,7 +137,6 @@ export const characterRouter = createTRPCRouter({
       return character;
     }),
 
-  // Update a character
   update: protectedProcedure
     .input(
       z.object({
@@ -148,7 +145,6 @@ export const characterRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Check if character exists and belongs to user
       const existingCharacter = await ctx.db.query.characters.findFirst({
         where: eq(characters.id, input.id),
       });
@@ -173,7 +169,6 @@ export const characterRouter = createTRPCRouter({
       return updatedCharacter;
     }),
 
-  // Update character stats
   updateStats: protectedProcedure
     .input(
       z.object({
@@ -182,7 +177,6 @@ export const characterRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Check if character exists and belongs to user
       const existingCharacter = await ctx.db.query.characters.findFirst({
         where: eq(characters.id, input.characterId),
       });
@@ -204,11 +198,9 @@ export const characterRouter = createTRPCRouter({
       return updatedStats;
     }),
 
-  // Delete a character
   delete: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      // Check if character exists and belongs to user
       const existingCharacter = await ctx.db.query.characters.findFirst({
         where: eq(characters.id, input.id),
       });
@@ -225,7 +217,6 @@ export const characterRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  // Add a class to a character
   addClass: protectedProcedure
     .input(
       z.object({
@@ -235,7 +226,6 @@ export const characterRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Check if character exists and belongs to user
       const existingCharacter = await ctx.db.query.characters.findFirst({
         where: eq(characters.id, input.characterId),
       });
@@ -260,7 +250,6 @@ export const characterRouter = createTRPCRouter({
       return newClass;
     }),
 
-  // Remove a class from a character
   removeClass: protectedProcedure
     .input(
       z.object({
@@ -269,7 +258,6 @@ export const characterRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Check if character exists and belongs to user
       const existingCharacter = await ctx.db.query.characters.findFirst({
         where: eq(characters.id, input.characterId),
       });
@@ -288,7 +276,6 @@ export const characterRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  // Add a weapon to a character
   addWeapon: protectedProcedure
     .input(
       z.object({
@@ -301,7 +288,6 @@ export const characterRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Check if character exists and belongs to user
       const existingCharacter = await ctx.db.query.characters.findFirst({
         where: eq(characters.id, input.characterId),
       });

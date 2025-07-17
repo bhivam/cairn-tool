@@ -4,7 +4,6 @@ import { Canvas, useThree } from "@react-three/fiber";
 import {
   OrbitControls,
   OrthographicCamera,
-  PerspectiveCamera,
   useTexture,
 } from "@react-three/drei";
 import { MOUSE, NoToneMapping, SRGBColorSpace, TOUCH } from "three";

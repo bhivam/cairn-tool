@@ -39,10 +39,13 @@ export default function CharacterCreationWizard({
     speed: 30,
   });
   const [selectedClass, setSelectedClass] = useState<string>("");
+  const [characterId, setCharacterId] = useState<number | null>(null);
 
-  // API mutations/queries
   const createChar = api.character.create.useMutation({
-    onSuccess: () => setStep("stats"),
+    onSuccess: (charData) => {
+      setStep("stats");
+      setCharacterId(charData.id);
+    },
   });
   const rollStats = api.characterRolls.rollStats.useMutation({
     onSuccess: (res) =>
@@ -81,14 +84,22 @@ export default function CharacterCreationWizard({
       notes: characterData.notes || undefined,
     });
   };
-  const handleRollStats = () => rollStats.mutate();
-  const handleSelectClass = (cls: string) => {
-    setSelectedClass(cls);
-    rollHP.mutate({ className: cls });
-    rollAC.mutate({ className: cls });
+
+  const handleRollStats = () => {
+    if (!characterId) return;
+    rollStats.mutate({ characterId });
   };
-  const handleGenEquip = () =>
-    selectedClass && genEquip.mutate({ className: selectedClass });
+
+  const handleSelectClass = (cls: string) => {
+    if (!characterId) return;
+    setSelectedClass(cls);
+    rollHP.mutate({ characterId, className: cls });
+    rollAC.mutate({ characterId, className: cls });
+  };
+  const handleGenEquip = () => {
+    if (!selectedClass || !characterId) return;
+    genEquip.mutate({ characterId, className: selectedClass });
+  };
 
   // Progress circles
   const steps: Step[] = ["identity", "stats", "class", "review"];
@@ -176,7 +187,7 @@ export default function CharacterCreationWizard({
             </div>
 
             {/* Status, Religion, Language, Notes similar */}
-            {["status", "religion", "language"].map((field) => (
+            {(["status", "religion", "language"] as const).map((field) => (
               <div key={field}>
                 <label
                   htmlFor={field}
@@ -187,7 +198,7 @@ export default function CharacterCreationWizard({
                 <input
                   id={field}
                   type="text"
-                  value={(characterData as any)[field]}
+                  value={characterData[field]}
                   onChange={(e) =>
                     setCharacterData((p) => ({
                       ...p,
@@ -238,9 +249,7 @@ export default function CharacterCreationWizard({
                   className="bg-muted text-foreground rounded p-4 text-center"
                 >
                   <div className="text-sm capitalize">{attr}</div>
-                  <div className="text-xl font-bold">
-                    {(stats as any)[attr]}
-                  </div>
+                  <div className="text-xl font-bold">{stats[attr]}</div>
                 </div>
               ))}
             </div>
@@ -294,11 +303,13 @@ export default function CharacterCreationWizard({
             <div className="bg-muted rounded p-4">
               <div className="text-foreground mb-2 font-bold">Stats</div>
               <div className="text-foreground grid grid-cols-2 gap-2 text-sm">
-                {["vit", "dex", "wis", "cha", "hp", "ac"].map((k) => (
-                  <div key={k} className="capitalize">
-                    {k}: {(stats as any)[k]}
-                  </div>
-                ))}
+                {(["vit", "dex", "wis", "cha", "hp", "ac"] as const).map(
+                  (k) => (
+                    <div key={k} className="capitalize">
+                      {k}: {stats[k]}
+                    </div>
+                  ),
+                )}
               </div>
             </div>
             <div className="text-center">
@@ -318,7 +329,11 @@ export default function CharacterCreationWizard({
         {step !== "identity" ? (
           <button
             onClick={() =>
-              setStep((s) => steps[Math.max(0, steps.indexOf(s) - 1)])
+              setStep((s) => {
+                const prev = steps[Math.max(0, steps.indexOf(s) - 1)];
+                if (!prev) return s;
+                return prev;
+              })
             }
             className="text-primary hover:underline"
           >
