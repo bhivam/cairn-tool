@@ -1,13 +1,12 @@
 import "@/styles/globals.css";
 
-//import SessionProvider from "@/providers/SessionProvider";
-
 import { type Metadata } from "next";
 import { Geist } from "next/font/google";
 
 import { TRPCReactProvider } from "@/trpc/react";
 import { auth } from "@/server/auth";
 import { SessionProvider } from "next-auth/react";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 export const metadata: Metadata = {
   title: "Create T3 App",
@@ -23,13 +22,17 @@ const geist = Geist({
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const session = await auth()
+  const session = await auth();
 
   return (
     <html lang="en" className={`${geist.variable}`}>
       <body>
         <SessionProvider session={session}>
-          <TRPCReactProvider>{children}</TRPCReactProvider>
+          <TRPCReactProvider>
+            <SidebarProvider>
+                {children}
+            </SidebarProvider>
+          </TRPCReactProvider>
         </SessionProvider>
       </body>
     </html>

@@ -125,7 +125,7 @@ export default function MessageBar() {
   }
 
   return (
-    <div className="bg-card text-foreground border-border flex h-full w-full flex-col border-l">
+    <>
       <div
         ref={scrollableDiv}
         className="relative min-h-0 flex-1 overflow-y-scroll"
@@ -165,6 +165,6 @@ export default function MessageBar() {
         sendMessage={sendMessage}
         isPending={createMessageMutation.isPending}
       />
-    </div>
+    </>
   );
 }

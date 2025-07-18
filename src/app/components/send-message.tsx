@@ -54,20 +54,28 @@ export default function SendMessage({
   function handleKeyUp(e: KeyboardEvent<HTMLInputElement>) {
     match(e)
       .with({ key: "ArrowUp" }, () => {
-        if (history.current[historyCursor.current - 1]) {
+        if (
+          history.current[historyCursor.current] ||
+          history.current[historyCursor.current - 1]
+        ) {
           e.preventDefault();
-          setContent(history.current[historyCursor.current - 1]!);
+          setContent(history.current[historyCursor.current - 1] ?? "");
           historyCursor.current--;
         }
       })
       .with({ key: "ArrowDown" }, () => {
-        if (history.current[historyCursor.current + 1]) {
+        if (
+          history.current[historyCursor.current] ||
+          history.current[historyCursor.current + 1]
+        ) {
           e.preventDefault();
-          setContent(history.current[historyCursor.current + 1]!);
+          setContent(history.current[historyCursor.current + 1] ?? "");
           historyCursor.current++;
         }
       })
-      .run();
+      .otherwise(() => {
+        return;
+      });
   }
 
   return (

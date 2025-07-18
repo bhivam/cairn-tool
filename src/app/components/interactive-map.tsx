@@ -60,11 +60,13 @@ export default function InteractiveMap() {
             TWO: TOUCH.DOLLY_PAN,
           }}
         />
-        <MapLayer textureUrl={"/map.png"} />
+        {/*         <MapLayer textureUrl={"/map.png"} />
         <MapLayer textureUrl={"/legend.png"} />
         <MapLayer textureUrl={"/settlements.png"} />
         <MapLayer textureUrl={"/labels.png"} />
-        <MapLayer textureUrl={"/landscape.png "} />
+        <MapLayer textureUrl={"/landscape.png"} /> */}
+        <MapLayer textureUrl="full_map.png" />
+        <MapLayer textureUrl="territories.png" />
       </Canvas>
     </div>
   );

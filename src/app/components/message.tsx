@@ -28,7 +28,7 @@ export function Message({
             {message.user.name ?? message.user.email}
           </span>
           <span className="text-muted-foreground text-xs">
-            {new Date(message.createdAt).toLocaleTimeString([], {
+            {new Date(message.createdAt).toLocaleDateString([], {
               hour: "2-digit",
               minute: "2-digit",
             })}
