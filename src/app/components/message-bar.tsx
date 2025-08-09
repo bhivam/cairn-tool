@@ -124,8 +124,10 @@ export default function MessageBar() {
     setShowGoToCurrent(false);
   }
 
+
   return (
     <>
+      {/* Removed in favor of floating overlay */}
       <div
         ref={scrollableDiv}
         className="relative min-h-0 flex-1 overflow-y-scroll"

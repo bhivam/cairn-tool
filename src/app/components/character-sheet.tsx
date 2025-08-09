@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api } from "@/trpc/react";
 import CharacterCreationWizard from "./character-creation-wizard";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { match, P } from "ts-pattern";
 
 export default function CharacterSection() {
@@ -11,9 +12,6 @@ export default function CharacterSection() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const { data: characters, refetch } = api.character.list.useQuery();
-  const deleteCharacter = api.character.delete.useMutation({
-    onSuccess: () => refetch(),
-  });
   const { data: character } = api.character.get.useQuery(
     { id: selectedId ?? 0 },
     { enabled: !!selectedId },
@@ -25,8 +23,11 @@ export default function CharacterSection() {
         // 1) LIST VIEW
         .with({ mode: "list" }, () => (
           <>
-            <header className="border-border flex items-center justify-between border-b px-4 py-2">
-              <h2 className="text-foreground text-lg font-bold">Characters</h2>
+            <header className="border-border flex items-center justify-between border-b px-2 py-2">
+              <div className="flex items-center gap-2">
+                <SidebarTrigger />
+                <h2 className="text-foreground text-lg font-bold">Characters</h2>
+              </div>
               <button
                 className="bg-primary text-primary-foreground hover:bg-primary/80 rounded px-3 py-1 transition"
                 onClick={() => setMode("wizard")}
@@ -62,14 +63,12 @@ export default function CharacterSection() {
         // 2) WIZARD VIEW
         .with({ mode: "wizard" }, () => (
           <>
-            <header className="border-border flex items-center justify-between border-b px-4 py-2">
-              <h2 className="text-foreground text-lg font-bold">
-                New Character
-              </h2>
-              <button
-                className="text-primary hover:underline"
-                onClick={() => setMode("list")}
-              >
+            <header className="border-border flex items-center justify-between border-b px-2 py-2">
+              <div className="flex items-center gap-2">
+                <SidebarTrigger />
+                <h2 className="text-foreground text-lg font-bold">New Character</h2>
+              </div>
+              <button className="text-primary hover:underline" onClick={() => setMode("list")}>
                 Cancel
               </button>
             </header>
@@ -86,69 +85,87 @@ export default function CharacterSection() {
         // 3a) SHEET VIEW (loaded)
         .with({ mode: "sheet", character: P.nonNullable }, ({ character }) => (
           <>
-            <header className="border-border flex items-center justify-between border-b px-4 py-2">
-              <button
-                className="text-primary hover:underline"
-                onClick={() => {
-                  setMode("list");
-                  setSelectedId(null);
-                }}
-              >
-                ← Back
-              </button>
-              <h2 className="text-foreground text-lg font-bold">
-                {character.name}
-              </h2>
-              <button
-                className="text-destructive hover:underline"
-                onClick={() => {
-                  if (confirm(`Delete ${character.name}?`)) {
-                    deleteCharacter.mutate({ id: character.id });
+            <header className="border-border flex items-center justify-between border-b px-2 py-2">
+              <div className="flex items-center gap-2">
+                <SidebarTrigger />
+                <button
+                  className="text-primary hover:underline"
+                  onClick={() => {
                     setMode("list");
                     setSelectedId(null);
-                  }
-                }}
-              >
-                Delete
-              </button>
+                  }}
+                >
+                  ← Back
+                </button>
+              </div>
+              <h2 className="text-foreground text-lg font-bold truncate">
+                {character.name}
+              </h2>
+              <div className="w-6" />
             </header>
             <div className="flex-1 space-y-4 overflow-auto p-4">
-              <Tabs defaultValue="identity" className="space-y-4">
-                <TabsList className="border-border border-b">
-                  <TabsTrigger value="identity">Identity</TabsTrigger>
-                  <TabsTrigger value="statistics">Statistics</TabsTrigger>
-                  <TabsTrigger value="inventory">Inventory</TabsTrigger>
-                  <TabsTrigger value="magic">Magic</TabsTrigger>
+              <Tabs defaultValue="identity" className="min-w-0 space-y-3">
+                <TabsList className="w-full max-w-full overflow-x-auto whitespace-nowrap">
+                  <TabsTrigger className="flex-none" value="identity">
+                    Identity
+                  </TabsTrigger>
+                  <TabsTrigger className="flex-none" value="statistics">
+                    Statistics
+                  </TabsTrigger>
+                  <TabsTrigger className="flex-none" value="inventory">
+                    Inventory
+                  </TabsTrigger>
+                  <TabsTrigger className="flex-none" value="magic">
+                    Magic
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="identity">
-                  <div className="text-foreground space-y-2">
-                    <div>
-                      <b>Name:</b> {character.name}
+                  <div className="space-y-3">
+                    <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
+                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Name
+                      </div>
+                      <div className="text-foreground mt-1 text-sm">{character.name}</div>
                     </div>
                     {character.region && (
-                      <div>
-                        <b>Region:</b> {character.region}
+                      <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
+                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Region
+                        </div>
+                        <div className="text-foreground mt-1 text-sm">{character.region}</div>
                       </div>
                     )}
                     {character.status && (
-                      <div>
-                        <b>Status:</b> {character.status}
+                      <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
+                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Status
+                        </div>
+                        <div className="text-foreground mt-1 text-sm">{character.status}</div>
                       </div>
                     )}
                     {character.religion && (
-                      <div>
-                        <b>Religion:</b> {character.religion}
+                      <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
+                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Religion
+                        </div>
+                        <div className="text-foreground mt-1 text-sm">{character.religion}</div>
                       </div>
                     )}
                     {character.language && (
-                      <div>
-                        <b>Language:</b> {character.language}
+                      <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
+                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Language
+                        </div>
+                        <div className="text-foreground mt-1 text-sm">{character.language}</div>
                       </div>
                     )}
                     {character.notes && (
-                      <div>
-                        <b>Notes:</b> {character.notes}
+                      <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
+                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Notes
+                        </div>
+                        <div className="text-foreground mt-1 text-sm break-words">{character.notes}</div>
                       </div>
                     )}
                   </div>
@@ -156,7 +173,7 @@ export default function CharacterSection() {
 
                 <TabsContent value="statistics">
                   {character.stats ? (
-                    <div className="text-foreground space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
                       {[
                         [
                           "VIT",
@@ -199,8 +216,16 @@ export default function CharacterSection() {
                         ["Spell Level", character.stats.spellCastingLevel],
                         ["Wisdom Prog", character.stats.wisdomProgress + "/20"],
                       ].map(([label, val]) => (
-                        <div key={label}>
-                          <b>{label}:</b> {val}
+                        <div
+                          key={label}
+                          className="bg-card/80 border-border rounded-lg border p-3 text-sm shadow-sm"
+                        >
+                          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            {label}
+                          </div>
+                          <div className="text-foreground mt-1 font-semibold">
+                            {val as string | number}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -210,49 +235,70 @@ export default function CharacterSection() {
                 </TabsContent>
 
                 <TabsContent value="inventory">
-                  <div className="text-foreground space-y-2">
-                    <div>
-                      <b>Coins:</b> {character.coinPurse?.gold ?? 0}g,{" "}
-                      {character.coinPurse?.silver ?? 0}s,{" "}
-                      {character.coinPurse?.copper ?? 0}c,{" "}
-                      {character.coinPurse?.platinum ?? 0}p
+                  <div className="space-y-3">
+                    <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
+                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Coins
+                      </div>
+                      <div className="text-foreground mt-1 text-sm">
+                        {(character.coinPurse?.gold ?? 0)}g, {(character.coinPurse?.silver ?? 0)}s, {(character.coinPurse?.copper ?? 0)}c, {(character.coinPurse?.platinum ?? 0)}p
+                      </div>
                     </div>
-                    <div>
-                      <b>Weapons:</b>{" "}
-                      {character.weapons?.map((w) => w.name).join(", ") ||
-                        "None"}
+                    <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
+                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Weapons
+                      </div>
+                      <div className="text-foreground mt-1 text-sm break-words">
+                        {character.weapons?.map((w) => w.name).join(", ") || "None"}
+                      </div>
                     </div>
-                    <div>
-                      <b>Bags:</b>{" "}
-                      {character.bagTypes?.map((b) => b.bagName).join(", ") ||
-                        "None"}
+                    <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
+                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Bags
+                      </div>
+                      <div className="text-foreground mt-1 text-sm break-words">
+                        {character.bagTypes?.map((b) => b.bagName).join(", ") || "None"}
+                      </div>
                     </div>
-                    <div>
-                      <b>Items:</b>{" "}
-                      {character.inventorySlots
-                        ?.map((i) => i.itemName)
-                        .filter(Boolean)
-                        .join(", ") || "None"}
+                    <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
+                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Items
+                      </div>
+                      <div className="text-foreground mt-1 text-sm break-words">
+                        {character.inventorySlots
+                          ?.map((i) => i.itemName)
+                          .filter(Boolean)
+                          .join(", ") || "None"}
+                      </div>
                     </div>
                   </div>
                 </TabsContent>
 
                 <TabsContent value="magic">
-                  <div className="text-foreground space-y-2">
-                    <div>
-                      <b>Spells:</b>{" "}
-                      {character.spells?.map((s) => s.name).join(", ") ||
-                        "None"}
+                  <div className="space-y-3">
+                    <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
+                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Spells
+                      </div>
+                      <div className="text-foreground mt-1 text-sm break-words">
+                        {character.spells?.map((s) => s.name).join(", ") || "None"}
+                      </div>
                     </div>
-                    <div>
-                      <b>Scrolls:</b>{" "}
-                      {character.scrolls?.map((s) => s.spellName).join(", ") ||
-                        "None"}
+                    <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
+                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Scrolls
+                      </div>
+                      <div className="text-foreground mt-1 text-sm break-words">
+                        {character.scrolls?.map((s) => s.spellName).join(", ") || "None"}
+                      </div>
                     </div>
-                    <div>
-                      <b>Potions:</b>{" "}
-                      {character.potions?.map((p) => p.name).join(", ") ||
-                        "None"}
+                    <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
+                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Potions
+                      </div>
+                      <div className="text-foreground mt-1 text-sm break-words">
+                        {character.potions?.map((p) => p.name).join(", ") || "None"}
+                      </div>
                     </div>
                   </div>
                 </TabsContent>

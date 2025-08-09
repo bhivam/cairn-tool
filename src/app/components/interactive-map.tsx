@@ -1,15 +1,12 @@
 "use client";
 
 import { Canvas, useThree } from "@react-three/fiber";
-import {
-  OrbitControls,
-  OrthographicCamera,
-  useTexture,
-} from "@react-three/drei";
+import { OrbitControls, OrthographicCamera, useTexture, Preload } from "@react-three/drei";
 import { MOUSE, NoToneMapping, SRGBColorSpace, TOUCH } from "three";
 import { useEffect } from "react";
+import { useMapSettings } from "../providers/map-settings";
 
-function MapLayer({ textureUrl }: { textureUrl: string }) {
+function MapLayer({ textureUrl, visible = true }: { textureUrl: string; visible?: boolean }) {
   const {
     camera,
     size: { height },
@@ -32,7 +29,7 @@ function MapLayer({ textureUrl }: { textureUrl: string }) {
   }, [camera, height, planeHeight]);
 
   return (
-    <mesh>
+    <mesh visible={visible}>
       <planeGeometry args={[planeWidth, planeHeight]} />
       <meshBasicMaterial map={texture} transparent />
     </mesh>
@@ -40,6 +37,7 @@ function MapLayer({ textureUrl }: { textureUrl: string }) {
 }
 
 export default function InteractiveMap() {
+  const { showTerritories } = useMapSettings();
   return (
     <div className="h-full w-full">
       <Canvas
@@ -66,7 +64,8 @@ export default function InteractiveMap() {
         <MapLayer textureUrl={"/labels.png"} />
         <MapLayer textureUrl={"/landscape.png"} /> */}
         <MapLayer textureUrl="full_map.png" />
-        <MapLayer textureUrl="territories.png" />
+        <MapLayer textureUrl="territories.png" visible={showTerritories} />
+        <Preload all />
       </Canvas>
     </div>
   );

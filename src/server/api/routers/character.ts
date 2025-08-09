@@ -9,6 +9,7 @@ import {
 } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
+import { rollStats } from "@/server/db/seed";
 
 const createCharacterSchema = z.object({
   name: z.string().min(1).max(255),
@@ -60,22 +61,24 @@ export const characterRouter = createTRPCRouter({
         });
       }
 
+      // Initialize stats with a default roll so new characters aren't all zeros
+      const [vit, dex, wis, cha] = rollStats();
       await ctx.db.insert(characterStats).values({
         characterId: character.id,
-        vitMax: 0,
-        vitCurrent: 0,
-        dexMax: 0,
-        dexCurrent: 0,
-        wisMax: 0,
-        wisCurrent: 0,
-        chaMax: 0,
-        chaCurrent: 0,
+        vitMax: vit,
+        vitCurrent: vit,
+        dexMax: dex,
+        dexCurrent: dex,
+        wisMax: wis,
+        wisCurrent: wis,
+        chaMax: cha,
+        chaCurrent: cha,
         hpMax: 0,
         hpCurrent: 0,
         acMax: 0,
         acCurrent: 0,
-        speed: 0,
-        agility: 0,
+        speed: 30,
+        agility: dex,
         spellCastingLevel: 0,
         wisdomProgress: 0,
       });

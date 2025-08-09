@@ -1,9 +1,5 @@
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
+import type React from "react";
+import { Sidebar, SidebarContent, SidebarRail, SidebarTrigger } from "@/components/ui/sidebar";
 import CharacterSheet from "./character-sheet";
 
 export function AppSidebar() {
@@ -11,18 +7,18 @@ export function AppSidebar() {
     <Sidebar
       variant="floating"
       collapsible="icon"
-      className="w-5/24 group-data-[collapsible=icon]:h-15"
+      style={{ "--sidebar-width": "24rem" } as React.CSSProperties}
+      className="group-data-[collapsible=icon]:h-15"
     >
-      <SidebarHeader className="max-h-20 rounded-lg">
-        <div className="flex h-full items-center">
-          <div className="flex w-full justify-end">
-            <SidebarTrigger />
-          </div>
-        </div>
-      </SidebarHeader>
-      <SidebarContent className="min-h-0 flex-1 rounded-lg group-data-[collapsible=icon]:hidden">
+      {/* Collapsed (icon) toolbar with a trigger to re-expand */}
+      <div className="hidden items-center justify-center p-2 group-data-[collapsible=icon]:flex">
+        <SidebarTrigger />
+      </div>
+
+      <SidebarContent className="min-h-0 flex-1 overflow-hidden rounded-lg group-data-[collapsible=icon]:hidden">
         <CharacterSheet />
       </SidebarContent>
+      <SidebarRail />
     </Sidebar>
   );
 }
