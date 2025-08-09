@@ -6,57 +6,21 @@ import { api, type RouterOutputs } from "@/trpc/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useMessageSender } from "@/app/providers/message-provider";
 
 export default function MessageBar() {
   const getMessagesQuery = api.message.getMessages.useQuery();
   const queryClient = useQueryClient();
   const session = useSession();
 
-  const optimisticId = useRef(Math.floor(Math.random() * 1000000));
   const dummyDiv = useRef<HTMLDivElement>(null);
   const scrollableDiv = useRef<HTMLDivElement>(null);
 
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [showGoToCurrent, setShowGoToCurrent] = useState(false);
 
-  const createMessageMutation = api.message.create.useMutation({
-    onMutate: async ({ content }) => {
-      const previous = queryClient.getQueryData<
-        RouterOutputs["message"]["getMessages"]
-      >([["message", "getMessages"], { type: "query" }]);
-
-      const user: RouterOutputs["message"]["getMessages"][number]["user"] = {
-        id: session.data!.user.id,
-        name: session.data!.user.name ?? "",
-        email: session.data!.user.email ?? "",
-        emailVerified: null,
-        image: session.data!.user.image ?? "",
-      };
-
-      const newMessage: RouterOutputs["message"]["getMessages"][number] = {
-        id: optimisticId.current++,
-        content,
-        createdById: session.data!.user.id,
-        user,
-        commandResult: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      queryClient.setQueryData<RouterOutputs["message"]["getMessages"]>(
-        [["message", "getMessages"], { type: "query" }],
-        (old) => (old ? [...old, newMessage] : [newMessage]),
-      );
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previous)
-        queryClient.setQueryData(
-          [["message", "getMessages"], { type: "query" }],
-          context.previous,
-        );
-    },
-  });
+  const { sendMessage: sendMessageViaContext, isPending: isSending } =
+    useMessageSender();
 
   // TODO some sort of error handling for broken connections
   api.message.messageUpdates.useSubscription(undefined, {
@@ -83,7 +47,7 @@ export default function MessageBar() {
 
   async function sendMessage(content: string) {
     if (!session.data?.user) throw new Error("Not logged in");
-    await createMessageMutation.mutateAsync({ content });
+    await sendMessageViaContext(content);
     scrollToBottom();
   }
 
@@ -124,7 +88,6 @@ export default function MessageBar() {
     setShowGoToCurrent(false);
   }
 
-
   return (
     <>
       {/* Removed in favor of floating overlay */}
@@ -163,10 +126,8 @@ export default function MessageBar() {
           </div>
         )}
       </div>
-      <SendMessage
-        sendMessage={sendMessage}
-        isPending={createMessageMutation.isPending}
-      />
+      <SendMessage sendMessage={sendMessage} isPending={isSending} />
     </>
   );
 }
+

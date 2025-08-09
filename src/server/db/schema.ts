@@ -90,9 +90,7 @@ export const characterStats = createTable("character_stats", (d) => ({
   acMax: d.integer().notNull().default(0),
   acCurrent: d.integer().notNull().default(0),
   speed: d.integer().notNull().default(0),
-  agility: d.integer().notNull().default(0), // Auto-filled from DEX
   spellCastingLevel: d.integer().notNull().default(0),
-  wisdomProgress: d.integer().notNull().default(0), // 0-20 for progress bar
 }));
 
 // Character Classes (for multiclass support)

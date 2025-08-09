@@ -231,9 +231,15 @@ export default function CharacterSection() {
                             character.stats.acMax,
                         ],
                         ["Speed", character.stats.speed],
-                        ["Agility", character.stats.agility],
+                        [
+                          "Agility",
+                          Math.ceil((character.stats.dexCurrent - 1) / 2) + 5,
+                        ],
                         ["Spell Level", character.stats.spellCastingLevel],
-                        ["Wisdom Prog", character.stats.wisdomProgress + "/20"],
+                        [
+                          "Wisdom Prog",
+                          `${character.stats.wisCurrent}/20`,
+                        ],
                       ].map(([label, val]) => (
                         <div
                           key={label}

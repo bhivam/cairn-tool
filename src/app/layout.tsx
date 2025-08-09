@@ -7,6 +7,7 @@ import { TRPCReactProvider } from "@/trpc/react";
 import { auth } from "@/server/auth";
 import { SessionProvider } from "next-auth/react";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { MessageProvider } from "./providers/message-provider";
 
 export const metadata: Metadata = {
   title: "Create T3 App",
@@ -30,7 +31,9 @@ export default async function RootLayout({
         <SessionProvider session={session}>
           <TRPCReactProvider>
             <SidebarProvider>
+              <MessageProvider>
                 {children}
+              </MessageProvider>
             </SidebarProvider>
           </TRPCReactProvider>
         </SessionProvider>

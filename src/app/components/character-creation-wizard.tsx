@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/trpc/react";
 import { commonRegions } from "@/server/db/seed";
+import { useMessageSender } from "@/app/providers/message-provider";
+import { match } from "ts-pattern";
 
 type Step = "identity" | "stats" | "class" | "review";
 
@@ -40,6 +42,11 @@ export default function CharacterCreationWizard({
   });
   const [selectedClass, setSelectedClass] = useState<string>("");
   const [characterId, setCharacterId] = useState<number | null>(null);
+  const [isRolling, setIsRolling] = useState(false);
+  const [currentRollIndex, setCurrentRollIndex] = useState(0); // 0..4 (vit,dex,wis,cha,hp)
+  const precomputedStatsRef = useRef<number[] | null>(null); // [vit,dex,wis,cha]
+  const precomputedHPRef = useRef<number | null>(null);
+  const timersRef = useRef<number[]>([]);
 
   const createChar = api.character.create.useMutation({
     onSuccess: (charData) => {
@@ -48,17 +55,14 @@ export default function CharacterCreationWizard({
     },
   });
   const rollStats = api.characterRolls.rollStats.useMutation({
-    onSuccess: (res) =>
-      setStats((s) => ({
-        ...s,
-        vit: res.stats[0]!,
-        dex: res.stats[1]!,
-        wis: res.stats[2]!,
-        cha: res.stats[3]!,
-      })),
+    onSuccess: (res) => {
+      precomputedStatsRef.current = res.stats;
+    },
   });
-  const rollHP = api.characterRolls.rollHP.useMutation({
-    onSuccess: (res) => setStats((s) => ({ ...s, hp: res.hp })),
+  const rollHPRaw = api.characterRolls.rollHPRaw.useMutation({
+    onSuccess: (res) => {
+      precomputedHPRef.current = res.hp;
+    },
   });
   const rollAC = api.characterRolls.rollAC.useMutation({
     onSuccess: (res) => setStats((s) => ({ ...s, ac: res.ac })),
@@ -66,10 +70,10 @@ export default function CharacterCreationWizard({
   const genEquip = api.characterRolls.generateStartingEquipment.useMutation({
     onSuccess: () => {
       setStep("review");
-      onComplete?.();
     },
   });
   const classesQ = api.characterRolls.getAvailableClasses.useQuery();
+  const { sendMessage: sendMessageViaContext } = useMessageSender();
 
   // Handlers
   const handleIdentity = (e: React.FormEvent) => {
@@ -85,17 +89,152 @@ export default function CharacterCreationWizard({
     });
   };
 
-  const handleRollStats = () => {
+  const statsOrder = ["vit", "dex", "wis", "cha", "hp"] as const;
+  type RollingStatKey = (typeof statsOrder)[number];
+
+  function animateNumber(
+    statKey: RollingStatKey,
+    finalValue: number,
+    durationMs = 4500,
+  ) {
+    setIsRolling(true);
+    const start = performance.now();
+    const min = statKey === "hp" ? 1 : 3;
+    const max = statKey === "hp" ? 10 : 18;
+    let lastUpdate = start - 1000; // ensure immediate first update
+    const minInterval = 16; // much faster updates
+    const maxInterval = 300; // slower near the end but snappier verall
+
+    function step(now: number) {
+      const elapsed = now - start;
+      if (elapsed >= durationMs) {
+        setStats((s) => ({ ...s, [statKey]: finalValue }));
+        setIsRolling(false);
+        const label = statKey.toUpperCase();
+        const msg =
+          statKey === "hp"
+            ? `Rolled HP (1d10): ${finalValue}`
+            : `Rolled ${label}: ${finalValue}`;
+        void sendMessageViaContext(msg);
+        setCurrentRollIndex((i) => i + 1);
+        return;
+      }
+      const t = Math.min(1, Math.max(0, elapsed / durationMs));
+      // Keep updates fast for most of the time, then slow dramatically near the end
+      const eased = Math.pow(t, 8); // back-load the slowdown
+      const interval = minInterval + eased * (maxInterval - minInterval);
+      if (now - lastUpdate >= interval) {
+        lastUpdate = now;
+        const randomValue = Math.floor(Math.random() * (max - min + 1)) + min;
+        setStats((s) => ({ ...s, [statKey]: randomValue }));
+      }
+      const id = requestAnimationFrame(step);
+      timersRef.current.push(id);
+    }
+
+    const id = requestAnimationFrame(step);
+    timersRef.current.push(id);
+  }
+
+  const handleRollNext = () => {
+    if (!characterId || isRolling) return;
+    const needCore = !precomputedStatsRef.current;
+    const needHP = precomputedHPRef.current == null;
+    if (needCore) rollStats.mutate({ characterId });
+    if (needHP) rollHPRaw.mutate({ characterId });
+
+    const coreStatsOrder = ["vit", "dex", "wis", "cha"] as const;
+
+    const run = () => {
+      const key = statsOrder[currentRollIndex];
+      if (!key) return;
+      let finalValue = 0;
+      if (key === "hp") {
+        finalValue = precomputedHPRef.current ?? 0;
+      } else {
+        const idx = coreStatsOrder.indexOf(key);
+        finalValue = precomputedStatsRef.current?.[idx] ?? 0;
+      }
+      animateNumber(key, finalValue);
+    };
+
+    let tries = 0;
+    const checkReady = () => {
+      const key = statsOrder[currentRollIndex];
+      const ready =
+        key === "hp"
+          ? precomputedHPRef.current != null
+          : !!precomputedStatsRef.current;
+      if (ready) {
+        run();
+      } else if (tries < 100) {
+        tries++;
+        const id = window.setTimeout(checkReady, 30);
+        timersRef.current.push(id as unknown as number);
+      }
+    };
+    checkReady();
+  };
+
+  // Instantly roll all stats without animation
+  const handleQuickRollAll = async () => {
     if (!characterId) return;
-    rollStats.mutate({ characterId });
+    // Cancel any pending animations/timeouts
+    for (const id of timersRef.current) {
+      cancelAnimationFrame(id);
+      clearTimeout(id as unknown as number);
+    }
+    timersRef.current = [];
+
+    try {
+      setIsRolling(true);
+      const [core, hp] = await Promise.all([
+        rollStats.mutateAsync({ characterId }),
+        rollHPRaw.mutateAsync({ characterId }),
+      ]);
+
+      // Persist for later steps as well
+      precomputedStatsRef.current = core.stats;
+      precomputedHPRef.current = hp.hp;
+
+      const [vit, dex, wis, cha] = core.stats as [
+        number,
+        number,
+        number,
+        number,
+      ];
+      setStats((s) => ({
+        ...s,
+        vit: vit ?? 0,
+        dex: dex ?? 0,
+        wis: wis ?? 0,
+        cha: cha ?? 0,
+        hp: hp.hp,
+      }));
+      setCurrentRollIndex(statsOrder.length);
+    } catch (_) {
+      // no-op
+    } finally {
+      setIsRolling(false);
+    }
   };
 
   const handleSelectClass = (cls: string) => {
     if (!characterId) return;
     setSelectedClass(cls);
-    rollHP.mutate({ characterId, className: cls });
     rollAC.mutate({ characterId, className: cls });
   };
+
+  useEffect(() => {
+    return () => {
+      for (const id of timersRef.current) {
+        cancelAnimationFrame(id);
+        clearTimeout(id as unknown as number);
+      }
+      timersRef.current = [];
+    };
+  }, []);
+
   const handleGenEquip = () => {
     if (!selectedClass || !characterId) return;
     genEquip.mutate({ characterId, className: selectedClass });
@@ -135,7 +274,7 @@ export default function CharacterCreationWizard({
       </div>
 
       {/* CONTENT */}
-      <div className="bg-background flex-1 overflow-auto px-6 py-4">
+      <div className="bg-background flex min-h-0 flex-1 flex-col overflow-auto px-6 py-4">
         {/* 1) IDENTITY */}
         {step === "identity" && (
           <form
@@ -234,31 +373,48 @@ export default function CharacterCreationWizard({
 
         {/* 2) STATS */}
         {step === "stats" && (
-          <div className="mx-auto max-w-lg space-y-6">
-            <button
-              onClick={handleRollStats}
-              disabled={rollStats.isPending}
-              className="bg-primary text-primary-foreground hover:bg-primary/80 w-full rounded px-4 py-2 transition disabled:opacity-50"
-            >
-              {rollStats.isPending ? "Rolling..." : "Roll Stats"}
-            </button>
-            <div className="grid grid-cols-2 gap-4">
-              {(["vit", "dex", "wis", "cha"] as const).map((attr) => (
-                <div
-                  key={attr}
-                  className="bg-muted text-foreground rounded p-4 text-center"
-                >
-                  <div className="text-sm capitalize">{attr}</div>
-                  <div className="text-xl font-bold">{stats[attr]}</div>
-                </div>
-              ))}
+          <div className="flex w-full flex-1 flex-col">
+            <div className="flex flex-1 flex-col gap-6">
+              <button
+                onClick={handleRollNext}
+                disabled={isRolling || currentRollIndex >= statsOrder.length}
+                className="bg-primary text-primary-foreground hover:bg-primary/80 w-full rounded px-4 py-2 transition disabled:opacity-50"
+              >
+                {currentRollIndex >= statsOrder.length
+                  ? "All stats rolled"
+                  : isRolling
+                    ? "Rolling..."
+                    : `Roll ${statsOrder[currentRollIndex]?.toUpperCase()}`}
+              </button>
+              <div className="grid grid-cols-2 gap-4">
+                {(["vit", "dex", "wis", "cha", "hp"] as const).map((attr) => (
+                  <div
+                    key={attr}
+                    className="bg-muted text-foreground rounded p-4 text-center"
+                  >
+                    <div className="text-sm capitalize">{attr}</div>
+                    <div className="text-xl font-bold">{stats[attr]}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={handleQuickRollAll}
+                disabled={isRolling || currentRollIndex >= statsOrder.length}
+                className="text-muted-foreground hover:text-foreground/80 text-xs underline-offset-2 hover:underline"
+                title="Quickly roll all stats instantly"
+              >
+                quick roll all stats
+              </button>
             </div>
           </div>
         )}
 
         {/* 3) CLASS */}
         {step === "class" && (
-          <div className="mx-auto max-w-lg space-y-6">
+          <div className="w-ful/gen space-y-6">
             {classesQ.data?.map((cls) => (
               <div
                 key={cls.name}
@@ -271,19 +427,10 @@ export default function CharacterCreationWizard({
               >
                 <div className="text-foreground font-semibold">{cls.name}</div>
                 <div className="text-muted-foreground text-sm">
-                  HP {cls.startingHP} | AC {cls.startingAC}
+                  AC {cls.startingAC}
                 </div>
               </div>
             ))}
-            <button
-              onClick={handleGenEquip}
-              disabled={!selectedClass || genEquip.isPending}
-              className="bg-primary text-primary-foreground hover:bg-primary/80 w-full rounded px-4 py-2 transition disabled:opacity-50"
-            >
-              {genEquip.isPending
-                ? "Generating…"
-                : "Generate Starting Equipment"}
-            </button>
           </div>
         )}
 
@@ -326,22 +473,24 @@ export default function CharacterCreationWizard({
 
       {/* FOOTER NAV */}
       <footer className="border-border bg-background flex items-center justify-between border-t px-6 py-3">
-        {step !== "identity" ? (
-          <button
-            onClick={() =>
-              setStep((s) => {
-                const prev = steps[Math.max(0, steps.indexOf(s) - 1)];
-                if (!prev) return s;
-                return prev;
-              })
-            }
-            className="text-primary hover:underline"
-          >
-            Back
-          </button>
-        ) : (
-          <div />
-        )}
+        {match(step)
+          .with("identity", () => (
+            <button
+              onClick={() =>
+                setStep((s) => {
+                  const prev = steps[Math.max(0, steps.indexOf(s) - 1)];
+                  if (!prev) return s;
+                  return prev;
+                })
+              }
+              className="text-primary hover:underline"
+            >
+              Back
+            </button>
+          ))
+          .otherwise(() => (
+            <div />
+          ))}
         {step === "identity" ? (
           <button
             onClick={handleIdentity}
@@ -353,7 +502,10 @@ export default function CharacterCreationWizard({
         ) : step === "stats" ? (
           <button
             onClick={() => setStep("class")}
-            disabled={stats.vit === 0}
+            disabled={
+              !(stats.vit && stats.dex && stats.wis && stats.cha && stats.hp) ||
+              isRolling
+            }
             className="bg-primary text-primary-foreground hover:bg-primary/80 rounded px-4 py-1 transition disabled:opacity-50"
           >
             Next
@@ -364,7 +516,7 @@ export default function CharacterCreationWizard({
             disabled={!selectedClass || genEquip.isPending}
             className="bg-primary text-primary-foreground hover:bg-primary/80 rounded px-4 py-1 transition disabled:opacity-50"
           >
-            {genEquip.isPending ? "Generating…" : "Next"}
+            {genEquip.isPending ? "Saving…" : "Next"}
           </button>
         ) : (
           <div />
@@ -373,3 +525,4 @@ export default function CharacterCreationWizard({
     </div>
   );
 }
+

@@ -37,9 +37,7 @@ const statSchema = z.object({
   acMax: z.number().min(0).max(6),
   acCurrent: z.number().min(0).max(6),
   speed: z.number().min(0),
-  agility: z.number().min(0).max(20),
   spellCastingLevel: z.number().min(0),
-  wisdomProgress: z.number().min(0).max(20),
 });
 
 export const characterRouter = createTRPCRouter({
@@ -78,9 +76,7 @@ export const characterRouter = createTRPCRouter({
         acMax: 0,
         acCurrent: 0,
         speed: 30,
-        agility: dex,
         spellCastingLevel: 0,
-        wisdomProgress: 0,
       });
 
       await ctx.db.insert(coinPurses).values({

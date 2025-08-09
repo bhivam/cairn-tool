@@ -40,7 +40,6 @@ export const characterRollsRouter = createTRPCRouter({
           wisCurrent: wis,
           chaMax: cha,
           chaCurrent: cha,
-          agility: dex, // Auto-fill agility from DEX
         })
         .where(eq(characterStats.characterId, input.characterId))
         .returning();
@@ -75,6 +74,42 @@ export const characterRollsRouter = createTRPCRouter({
       const rolledHP = rollHP(input.className);
 
       // Update character stats
+      const [updatedStats] = await ctx.db
+        .update(characterStats)
+        .set({
+          hpMax: rolledHP,
+          hpCurrent: rolledHP,
+        })
+        .where(eq(characterStats.characterId, input.characterId))
+        .returning();
+
+      return {
+        hp: rolledHP,
+        updatedStats,
+      };
+    }),
+
+  // Roll raw HP for a character (1d10 independent of class)
+  rollHPRaw: protectedProcedure
+    .input(z.object({
+      characterId: z.number(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const existingCharacter = await ctx.db.query.characters.findFirst({
+        where: eq(characters.id, input.characterId),
+      });
+
+      if (!existingCharacter) {
+        throw new Error("Character not found");
+      }
+
+      if (existingCharacter.userId !== ctx.session.user.id) {
+        throw new Error("Unauthorized");
+      }
+
+      // 1d10 roll
+      const rolledHP = Math.floor(Math.random() * 10) + 1;
+
       const [updatedStats] = await ctx.db
         .update(characterStats)
         .set({
@@ -240,49 +275,7 @@ export const characterRollsRouter = createTRPCRouter({
       };
     }),
 
-  // Auto-calculate agility from DEX
-  autoCalculateAgility: protectedProcedure
-    .input(z.object({
-      characterId: z.number(),
-    }))
-    .mutation(async ({ ctx, input }) => {
-      // Check if character exists and belongs to user
-      const existingCharacter = await ctx.db.query.characters.findFirst({
-        where: eq(characters.id, input.characterId),
-      });
-
-      if (!existingCharacter) {
-        throw new Error("Character not found");
-      }
-
-      if (existingCharacter.userId !== ctx.session.user.id) {
-        throw new Error("Unauthorized");
-      }
-
-      // Get current stats
-      const currentStats = await ctx.db.query.characterStats.findFirst({
-        where: eq(characterStats.characterId, input.characterId),
-      });
-
-      if (!currentStats) {
-        throw new Error("Character stats not found");
-      }
-
-      // Auto-calculate agility from DEX
-      const agility = currentStats.dexCurrent;
-
-      // Update character stats
-      const [updatedStats] = await ctx.db
-        .update(characterStats)
-        .set({ agility })
-        .where(eq(characterStats.characterId, input.characterId))
-        .returning();
-
-      return {
-        agility,
-        updatedStats,
-      };
-    }),
+  
 
   // Get available classes
   getAvailableClasses: protectedProcedure.query(async () => {
