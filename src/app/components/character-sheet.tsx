@@ -26,7 +26,9 @@ export default function CharacterSection() {
             <header className="border-border flex items-center justify-between border-b px-2 py-2">
               <div className="flex items-center gap-2">
                 <SidebarTrigger />
-                <h2 className="text-foreground text-lg font-bold">Characters</h2>
+                <h2 className="text-foreground text-lg font-bold">
+                  Characters
+                </h2>
               </div>
               <button
                 className="bg-primary text-primary-foreground hover:bg-primary/80 rounded px-3 py-1 transition"
@@ -66,9 +68,14 @@ export default function CharacterSection() {
             <header className="border-border flex items-center justify-between border-b px-2 py-2">
               <div className="flex items-center gap-2">
                 <SidebarTrigger />
-                <h2 className="text-foreground text-lg font-bold">New Character</h2>
+                <h2 className="text-foreground text-lg font-bold">
+                  New Character
+                </h2>
               </div>
-              <button className="text-primary hover:underline" onClick={() => setMode("list")}>
+              <button
+                className="text-primary hover:underline"
+                onClick={() => setMode("list")}
+              >
                 Cancel
               </button>
             </header>
@@ -98,7 +105,7 @@ export default function CharacterSection() {
                   ← Back
                 </button>
               </div>
-              <h2 className="text-foreground text-lg font-bold truncate">
+              <h2 className="text-foreground truncate text-lg font-bold">
                 {character.name}
               </h2>
               <div className="w-6" />
@@ -123,49 +130,61 @@ export default function CharacterSection() {
                 <TabsContent value="identity">
                   <div className="space-y-3">
                     <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
-                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                         Name
                       </div>
-                      <div className="text-foreground mt-1 text-sm">{character.name}</div>
+                      <div className="text-foreground mt-1 text-sm">
+                        {character.name}
+                      </div>
                     </div>
                     {character.region && (
                       <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
-                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                           Region
                         </div>
-                        <div className="text-foreground mt-1 text-sm">{character.region}</div>
+                        <div className="text-foreground mt-1 text-sm">
+                          {character.region}
+                        </div>
                       </div>
                     )}
                     {character.status && (
                       <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
-                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                           Status
                         </div>
-                        <div className="text-foreground mt-1 text-sm">{character.status}</div>
+                        <div className="text-foreground mt-1 text-sm">
+                          {character.status}
+                        </div>
                       </div>
                     )}
                     {character.religion && (
                       <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
-                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                           Religion
                         </div>
-                        <div className="text-foreground mt-1 text-sm">{character.religion}</div>
+                        <div className="text-foreground mt-1 text-sm">
+                          {character.religion}
+                        </div>
                       </div>
                     )}
                     {character.language && (
                       <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
-                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                           Language
                         </div>
-                        <div className="text-foreground mt-1 text-sm">{character.language}</div>
+                        <div className="text-foreground mt-1 text-sm">
+                          {character.language}
+                        </div>
                       </div>
                     )}
                     {character.notes && (
                       <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
-                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                           Notes
                         </div>
-                        <div className="text-foreground mt-1 text-sm break-words">{character.notes}</div>
+                        <div className="text-foreground mt-1 text-sm break-words">
+                          {character.notes}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -220,11 +239,11 @@ export default function CharacterSection() {
                           key={label}
                           className="bg-card/80 border-border rounded-lg border p-3 text-sm shadow-sm"
                         >
-                          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                             {label}
                           </div>
                           <div className="text-foreground mt-1 font-semibold">
-                            {val as string | number}
+                            {val}
                           </div>
                         </div>
                       ))}
@@ -237,31 +256,36 @@ export default function CharacterSection() {
                 <TabsContent value="inventory">
                   <div className="space-y-3">
                     <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
-                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                         Coins
                       </div>
                       <div className="text-foreground mt-1 text-sm">
-                        {(character.coinPurse?.gold ?? 0)}g, {(character.coinPurse?.silver ?? 0)}s, {(character.coinPurse?.copper ?? 0)}c, {(character.coinPurse?.platinum ?? 0)}p
+                        {character.coinPurse?.gold ?? 0}g,{" "}
+                        {character.coinPurse?.silver ?? 0}s,{" "}
+                        {character.coinPurse?.copper ?? 0}c,{" "}
+                        {character.coinPurse?.platinum ?? 0}p
                       </div>
                     </div>
                     <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
-                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                         Weapons
                       </div>
                       <div className="text-foreground mt-1 text-sm break-words">
-                        {character.weapons?.map((w) => w.name).join(", ") || "None"}
+                        {character.weapons?.map((w) => w.name).join(", ") ||
+                          "None"}
                       </div>
                     </div>
                     <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
-                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                         Bags
                       </div>
                       <div className="text-foreground mt-1 text-sm break-words">
-                        {character.bagTypes?.map((b) => b.bagName).join(", ") || "None"}
+                        {character.bagTypes?.map((b) => b.bagName).join(", ") ||
+                          "None"}
                       </div>
                     </div>
                     <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
-                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                         Items
                       </div>
                       <div className="text-foreground mt-1 text-sm break-words">
@@ -277,27 +301,31 @@ export default function CharacterSection() {
                 <TabsContent value="magic">
                   <div className="space-y-3">
                     <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
-                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                         Spells
                       </div>
                       <div className="text-foreground mt-1 text-sm break-words">
-                        {character.spells?.map((s) => s.name).join(", ") || "None"}
+                        {character.spells?.map((s) => s.name).join(", ") ||
+                          "None"}
                       </div>
                     </div>
                     <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
-                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                         Scrolls
                       </div>
                       <div className="text-foreground mt-1 text-sm break-words">
-                        {character.scrolls?.map((s) => s.spellName).join(", ") || "None"}
+                        {character.scrolls
+                          ?.map((s) => s.spellName)
+                          .join(", ") || "None"}
                       </div>
                     </div>
                     <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
-                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                         Potions
                       </div>
                       <div className="text-foreground mt-1 text-sm break-words">
-                        {character.potions?.map((p) => p.name).join(", ") || "None"}
+                        {character.potions?.map((p) => p.name).join(", ") ||
+                          "None"}
                       </div>
                     </div>
                   </div>
@@ -316,3 +344,4 @@ export default function CharacterSection() {
     </div>
   );
 }
+
