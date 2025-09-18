@@ -3,7 +3,6 @@ import React from "react";
 import { RollResultDisplay } from "./roll-result-display";
 import { match } from "ts-pattern";
 import SaveResultDisplay from "./save-result-display";
-import Image from "next/image";
 
 export function Message({
   message,
@@ -18,7 +17,7 @@ export function Message({
 
   return (
     <div className="flex items-start gap-3 px-4 py-2 transition-colors">
-      <Image
+      <img
         src={avatar}
         alt={message.user.email}
         className="mt-1 h-10 w-10 rounded-full object-cover"
