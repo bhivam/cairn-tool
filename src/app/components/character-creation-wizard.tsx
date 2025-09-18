@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { api } from "@/trpc/react";
+import { api, type RouterOutputs } from "@/trpc/react";
 import { commonRegions } from "@/server/db/seed";
 import { useMessageSender } from "@/app/providers/message-provider";
 import { match } from "ts-pattern";
 
+type Stats = RouterOutputs["character"]["rollStats"]["stats"];
 type Step = "identity" | "stats" | "class" | "review";
+const statsOrder = ["vit", "dex", "wis", "cha", "hp"] as const;
+type RollingStatKey = (typeof statsOrder)[number];
 
 interface CharacterData {
   name: string;
@@ -37,15 +40,11 @@ export default function CharacterCreationWizard({
     wis: 0,
     cha: 0,
     hp: 0,
-    ac: 0,
-    speed: 30,
   });
-  const [selectedClass, setSelectedClass] = useState<string>("");
   const [characterId, setCharacterId] = useState<number | null>(null);
   const [isRolling, setIsRolling] = useState(false);
-  const [currentRollIndex, setCurrentRollIndex] = useState(0); // 0..4 (vit,dex,wis,cha,hp)
-  const precomputedStatsRef = useRef<number[] | null>(null); // [vit,dex,wis,cha]
-  const precomputedHPRef = useRef<number | null>(null);
+  const [currentRollIndex, setCurrentRollIndex] = useState<number>(0);
+  const precomputedStatsRef = useRef<Stats>(null);
   const timersRef = useRef<number[]>([]);
 
   const createChar = api.character.create.useMutation({
@@ -54,43 +53,25 @@ export default function CharacterCreationWizard({
       setCharacterId(charData.id);
     },
   });
-  const rollStats = api.characterRolls.rollStats.useMutation({
+  const rollStats = api.character.rollStats.useMutation({
     onSuccess: (res) => {
       precomputedStatsRef.current = res.stats;
     },
   });
-  const rollHPRaw = api.characterRolls.rollHPRaw.useMutation({
-    onSuccess: (res) => {
-      precomputedHPRef.current = res.hp;
-    },
-  });
-  const rollAC = api.characterRolls.rollAC.useMutation({
-    onSuccess: (res) => setStats((s) => ({ ...s, ac: res.ac })),
-  });
-  const genEquip = api.characterRolls.generateStartingEquipment.useMutation({
-    onSuccess: () => {
-      setStep("review");
-    },
-  });
-  const classesQ = api.characterRolls.getAvailableClasses.useQuery();
   const { sendMessage: sendMessageViaContext } = useMessageSender();
 
-  // Handlers
   const handleIdentity = (e: React.FormEvent) => {
     e.preventDefault();
     if (!characterData.name.trim()) return;
     createChar.mutate({
       name: characterData.name,
-      region: characterData.region || undefined,
-      status: characterData.status || undefined,
-      religion: characterData.religion || undefined,
-      language: characterData.language || undefined,
-      notes: characterData.notes || undefined,
+      region: characterData.region ?? undefined,
+      status: characterData.status ?? undefined,
+      religion: characterData.religion ?? undefined,
+      language: characterData.language ?? undefined,
+      notes: characterData.notes ?? undefined,
     });
   };
-
-  const statsOrder = ["vit", "dex", "wis", "cha", "hp"] as const;
-  type RollingStatKey = (typeof statsOrder)[number];
 
   function animateNumber(
     statKey: RollingStatKey,
@@ -101,9 +82,9 @@ export default function CharacterCreationWizard({
     const start = performance.now();
     const min = statKey === "hp" ? 1 : 3;
     const max = statKey === "hp" ? 10 : 18;
-    let lastUpdate = start - 1000; // ensure immediate first update
-    const minInterval = 16; // much faster updates
-    const maxInterval = 300; // slower near the end but snappier verall
+    let lastUpdate = start - 1000;
+    const minInterval = 16;
+    const maxInterval = 300;
 
     function step(now: number) {
       const elapsed = now - start;
@@ -136,44 +117,19 @@ export default function CharacterCreationWizard({
     timersRef.current.push(id);
   }
 
-  const handleRollNext = () => {
+  const handleRollNext = async () => {
     if (!characterId || isRolling) return;
-    const needCore = !precomputedStatsRef.current;
-    const needHP = precomputedHPRef.current == null;
-    if (needCore) rollStats.mutate({ characterId });
-    if (needHP) rollHPRaw.mutate({ characterId });
+    if (!precomputedStatsRef.current)
+      await rollStats.mutateAsync({ characterId });
 
-    const coreStatsOrder = ["vit", "dex", "wis", "cha"] as const;
+    if (!precomputedStatsRef.current)
+      throw new Error("precomputed stats must exist");
 
-    const run = () => {
-      const key = statsOrder[currentRollIndex];
-      if (!key) return;
-      let finalValue = 0;
-      if (key === "hp") {
-        finalValue = precomputedHPRef.current ?? 0;
-      } else {
-        const idx = coreStatsOrder.indexOf(key);
-        finalValue = precomputedStatsRef.current?.[idx] ?? 0;
-      }
-      animateNumber(key, finalValue);
-    };
-
-    let tries = 0;
-    const checkReady = () => {
-      const key = statsOrder[currentRollIndex];
-      const ready =
-        key === "hp"
-          ? precomputedHPRef.current != null
-          : !!precomputedStatsRef.current;
-      if (ready) {
-        run();
-      } else if (tries < 100) {
-        tries++;
-        const id = window.setTimeout(checkReady, 30);
-        timersRef.current.push(id as unknown as number);
-      }
-    };
-    checkReady();
+    const key = statsOrder[currentRollIndex];
+    if (!key) return;
+    let finalValue = 0;
+    finalValue = precomputedStatsRef.current[`${key}Max`];
+    animateNumber(key, finalValue);
   };
 
   // Instantly roll all stats without animation
@@ -188,41 +144,23 @@ export default function CharacterCreationWizard({
 
     try {
       setIsRolling(true);
-      const [core, hp] = await Promise.all([
-        rollStats.mutateAsync({ characterId }),
-        rollHPRaw.mutateAsync({ characterId }),
-      ]);
+      const {
+        stats: { vitMax, dexMax, wisMax, chaMax, hpMax },
+      } = await rollStats.mutateAsync({ characterId });
 
-      // Persist for later steps as well
-      precomputedStatsRef.current = core.stats;
-      precomputedHPRef.current = hp.hp;
+      setStats({
+        vit: vitMax,
+        dex: dexMax,
+        wis: wisMax,
+        cha: chaMax,
+        hp: hpMax,
+      });
 
-      const [vit, dex, wis, cha] = core.stats as [
-        number,
-        number,
-        number,
-        number,
-      ];
-      setStats((s) => ({
-        ...s,
-        vit: vit ?? 0,
-        dex: dex ?? 0,
-        wis: wis ?? 0,
-        cha: cha ?? 0,
-        hp: hp.hp,
-      }));
       setCurrentRollIndex(statsOrder.length);
-    } catch (_) {
-      // no-op
+    } catch {
     } finally {
       setIsRolling(false);
     }
-  };
-
-  const handleSelectClass = (cls: string) => {
-    if (!characterId) return;
-    setSelectedClass(cls);
-    rollAC.mutate({ characterId, className: cls });
   };
 
   useEffect(() => {
@@ -235,26 +173,13 @@ export default function CharacterCreationWizard({
     };
   }, []);
 
-  const handleGenEquip = () => {
-    if (!selectedClass || !characterId) return;
-    genEquip.mutate({ characterId, className: selectedClass });
-  };
-
   // Progress circles
   const steps: Step[] = ["identity", "stats", "class", "review"];
   const idx = steps.indexOf(step);
 
   return (
-    <div className="bg-card border-border flex h-full flex-col overflow-hidden rounded-lg border">
-      {/* HEADER */}
-      <header className="border-border bg-background border-b px-4 py-3">
-        <h2 className="text-foreground text-lg font-bold">
-          Character Creation
-        </h2>
-      </header>
-
-      {/* PROGRESS */}
-      <div className="bg-background border-border border-b px-4 py-2">
+    <div className="border-border flex h-full flex-col overflow-hidden">
+      <div className="bg-background border-border border-b p-2">
         <div className="flex items-center">
           {steps.map((s, i) => (
             <div key={s} className="flex items-center">
@@ -273,14 +198,9 @@ export default function CharacterCreationWizard({
         </div>
       </div>
 
-      {/* CONTENT */}
-      <div className="bg-background flex min-h-0 flex-1 flex-col overflow-auto px-6 py-4">
-        {/* 1) IDENTITY */}
+      <div className="bg-background flex min-h-0 flex-1 flex-col overflow-auto p-2">
         {step === "identity" && (
-          <form
-            onSubmit={handleIdentity}
-            className="mx-auto max-w-lg space-y-4"
-          >
+          <form onSubmit={handleIdentity} className="space-y-4">
             <div>
               <label
                 htmlFor="name"
@@ -325,7 +245,6 @@ export default function CharacterCreationWizard({
               </select>
             </div>
 
-            {/* Status, Religion, Language, Notes similar */}
             {(["status", "religion", "language"] as const).map((field) => (
               <div key={field}>
                 <label
@@ -371,7 +290,6 @@ export default function CharacterCreationWizard({
           </form>
         )}
 
-        {/* 2) STATS */}
         {step === "stats" && (
           <div className="flex w-full flex-1 flex-col">
             <div className="flex flex-1 flex-col gap-6">
@@ -412,31 +330,10 @@ export default function CharacterCreationWizard({
           </div>
         )}
 
-        {/* 3) CLASS */}
-        {step === "class" && (
-          <div className="w-ful/gen space-y-6">
-            {classesQ.data?.map((cls) => (
-              <div
-                key={cls.name}
-                onClick={() => handleSelectClass(cls.name)}
-                className={`cursor-pointer rounded border-2 p-4 transition ${
-                  selectedClass === cls.name
-                    ? "border-primary bg-primary/10"
-                    : "border-input bg-background hover:border-border"
-                } `}
-              >
-                <div className="text-foreground font-semibold">{cls.name}</div>
-                <div className="text-muted-foreground text-sm">
-                  AC {cls.startingAC}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {step === "class" && <div>UNIMPLEMENTED</div>}
 
-        {/* 4) REVIEW */}
         {step === "review" && (
-          <div className="mx-auto max-w-lg space-y-6">
+          <div className="space-y-6">
             <div className="bg-muted rounded p-4">
               <div className="text-foreground mb-2 font-bold">
                 {characterData.name}
@@ -450,29 +347,18 @@ export default function CharacterCreationWizard({
             <div className="bg-muted rounded p-4">
               <div className="text-foreground mb-2 font-bold">Stats</div>
               <div className="text-foreground grid grid-cols-2 gap-2 text-sm">
-                {(["vit", "dex", "wis", "cha", "hp", "ac"] as const).map(
-                  (k) => (
-                    <div key={k} className="capitalize">
-                      {k}: {stats[k]}
-                    </div>
-                  ),
-                )}
+                {statsOrder.map((k) => (
+                  <div key={k} className="capitalize">
+                    {k}: {stats[k]}
+                  </div>
+                ))}
               </div>
-            </div>
-            <div className="text-center">
-              <button
-                onClick={() => onComplete?.()}
-                className="bg-primary text-primary-foreground hover:bg-primary/80 rounded px-6 py-2 transition"
-              >
-                Finish & Exit
-              </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* FOOTER NAV */}
-      <footer className="border-border bg-background flex items-center justify-between border-t px-6 py-3">
+      <footer className="border-border flex items-center justify-between border-t px-6 py-3">
         {match(step)
           .with("identity", () => (
             <button
@@ -512,14 +398,18 @@ export default function CharacterCreationWizard({
           </button>
         ) : step === "class" ? (
           <button
-            onClick={handleGenEquip}
-            disabled={!selectedClass || genEquip.isPending}
+            onClick={() => setStep("review")}
             className="bg-primary text-primary-foreground hover:bg-primary/80 rounded px-4 py-1 transition disabled:opacity-50"
           >
-            {genEquip.isPending ? "Saving…" : "Next"}
+            Next
           </button>
         ) : (
-          <div />
+          <button
+            onClick={() => onComplete?.()}
+            className="bg-primary text-primary-foreground hover:bg-primary/80 rounded px-6 py-1 transition"
+          >
+            Finish & Exit
+          </button>
         )}
       </footer>
     </div>

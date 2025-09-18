@@ -1,16 +1,54 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import {
-  characters,
-  characterStats,
-  characterClasses,
-  weapons,
-  coinPurses,
-} from "@/server/db/schema";
-import { eq } from "drizzle-orm";
+import { characters, characterStats } from "@/server/db/schema";
+import { and, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { rollStats } from "@/server/db/seed";
+import { db } from "@/server/db";
 
+const genericStatRoll = () =>
+  Array.from({ length: 3 }, () => Math.floor(Math.random() * 6) + 1).reduce(
+    (sum, roll) => sum + roll,
+    0,
+  );
+
+const hpRoll = () => Math.floor(Math.random() * 10) + 1;
+
+function rollStats() {
+  return {
+    vit: genericStatRoll(),
+    dex: genericStatRoll(),
+    wis: genericStatRoll(),
+    cha: genericStatRoll(),
+    hp: hpRoll(),
+  };
+}
+
+async function getCharacter({
+  characterId,
+  userId,
+}: {
+  characterId: number;
+  userId: string;
+}) {
+  const existingCharacter = await db.query.characters.findFirst({
+    where: and(eq(characters.id, characterId), eq(characters.userId, userId)),
+  });
+
+  if (!existingCharacter) {
+    throw new TRPCError({ code: "NOT_FOUND" });
+  }
+
+  return existingCharacter;
+}
+
+async function checkCharacterExists(params: {
+  characterId: number;
+  userId: string;
+}) {
+  await getCharacter(params);
+}
+
+// TODO Completely Retarded
 const createCharacterSchema = z.object({
   name: z.string().min(1).max(255),
   portrait: z.string().optional(),
@@ -34,10 +72,6 @@ const statSchema = z.object({
   chaCurrent: z.number().min(0).max(20),
   hpMax: z.number().min(0).max(10),
   hpCurrent: z.number().min(0).max(10),
-  acMax: z.number().min(0).max(6),
-  acCurrent: z.number().min(0).max(6),
-  speed: z.number().min(0),
-  spellCastingLevel: z.number().min(0),
 });
 
 export const characterRouter = createTRPCRouter({
@@ -59,35 +93,50 @@ export const characterRouter = createTRPCRouter({
         });
       }
 
-      // Initialize stats with a default roll so new characters aren't all zeros
-      const [vit, dex, wis, cha] = rollStats();
-      await ctx.db.insert(characterStats).values({
-        characterId: character.id,
-        vitMax: vit,
-        vitCurrent: vit,
-        dexMax: dex,
-        dexCurrent: dex,
-        wisMax: wis,
-        wisCurrent: wis,
-        chaMax: cha,
-        chaCurrent: cha,
-        hpMax: 0,
-        hpCurrent: 0,
-        acMax: 0,
-        acCurrent: 0,
-        speed: 30,
-        spellCastingLevel: 0,
-      });
-
-      await ctx.db.insert(coinPurses).values({
-        characterId: character.id,
-        gold: 0,
-        silver: 0,
-        copper: 0,
-        platinum: 0,
-      });
-
       return character;
+    }),
+
+  rollStats: protectedProcedure
+    .input(
+      z.object({
+        characterId: z.number(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await checkCharacterExists({
+        characterId: input.characterId,
+        userId: ctx.session.user.id,
+      });
+
+      const rolledStats = rollStats();
+      const { vit, dex, wis, cha, hp } = rolledStats;
+
+      const [stats] = await ctx.db
+        .insert(characterStats)
+        .values({
+          characterId: input.characterId,
+          vitMax: vit,
+          vitCurrent: vit,
+          dexMax: dex,
+          dexCurrent: dex,
+          wisMax: wis,
+          wisCurrent: wis,
+          chaMax: cha,
+          chaCurrent: cha,
+          hpMax: hp,
+          hpCurrent: hp,
+        })
+        .returning();
+
+      console.log(stats);
+
+      if (!stats) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      }
+
+      return {
+        stats,
+      };
     }),
 
   list: protectedProcedure.query(async ({ ctx }) => {
@@ -95,14 +144,6 @@ export const characterRouter = createTRPCRouter({
       where: eq(characters.userId, ctx.session.user.id),
       with: {
         stats: true,
-        classes: true,
-        weapons: true,
-        inventorySlots: true,
-        coinPurse: true,
-        bagTypes: true,
-        spells: true,
-        scrolls: true,
-        potions: true,
       },
     });
   }),
@@ -114,14 +155,6 @@ export const characterRouter = createTRPCRouter({
         where: eq(characters.id, input.id),
         with: {
           stats: true,
-          classes: true,
-          weapons: true,
-          inventorySlots: true,
-          coinPurse: true,
-          bagTypes: true,
-          spells: true,
-          scrolls: true,
-          potions: true,
         },
       });
 
@@ -215,102 +248,5 @@ export const characterRouter = createTRPCRouter({
       await ctx.db.delete(characters).where(eq(characters.id, input.id));
       return { success: true };
     }),
-
-  addClass: protectedProcedure
-    .input(
-      z.object({
-        characterId: z.number(),
-        className: z.string().min(1).max(100),
-        level: z.number().min(1).default(1),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      const existingCharacter = await ctx.db.query.characters.findFirst({
-        where: eq(characters.id, input.characterId),
-      });
-
-      if (!existingCharacter) {
-        throw new Error("Character not found");
-      }
-
-      if (existingCharacter.userId !== ctx.session.user.id) {
-        throw new Error("Unauthorized");
-      }
-
-      const [newClass] = await ctx.db
-        .insert(characterClasses)
-        .values({
-          characterId: input.characterId,
-          className: input.className,
-          level: input.level,
-        })
-        .returning();
-
-      return newClass;
-    }),
-
-  removeClass: protectedProcedure
-    .input(
-      z.object({
-        characterId: z.number(),
-        classId: z.number(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      const existingCharacter = await ctx.db.query.characters.findFirst({
-        where: eq(characters.id, input.characterId),
-      });
-
-      if (!existingCharacter) {
-        throw new Error("Character not found");
-      }
-
-      if (existingCharacter.userId !== ctx.session.user.id) {
-        throw new Error("Unauthorized");
-      }
-
-      await ctx.db
-        .delete(characterClasses)
-        .where(eq(characterClasses.id, input.classId));
-      return { success: true };
-    }),
-
-  addWeapon: protectedProcedure
-    .input(
-      z.object({
-        characterId: z.number(),
-        name: z.string().min(1).max(100),
-        damageDie: z.string().min(1).max(20),
-        proficiency: z.string().min(1).max(50),
-        traits: z.string().optional(),
-        equipped: z.boolean().default(false),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      const existingCharacter = await ctx.db.query.characters.findFirst({
-        where: eq(characters.id, input.characterId),
-      });
-
-      if (!existingCharacter) {
-        throw new Error("Character not found");
-      }
-
-      if (existingCharacter.userId !== ctx.session.user.id) {
-        throw new Error("Unauthorized");
-      }
-
-      const [newWeapon] = await ctx.db
-        .insert(weapons)
-        .values({
-          characterId: input.characterId,
-          name: input.name,
-          damageDie: input.damageDie,
-          proficiency: input.proficiency,
-          traits: input.traits,
-          equipped: input.equipped,
-        })
-        .returning();
-
-      return newWeapon;
-    }),
 });
+

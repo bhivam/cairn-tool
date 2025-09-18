@@ -1,12 +1,23 @@
 "use client";
 
 import { Canvas, useThree } from "@react-three/fiber";
-import { OrbitControls, OrthographicCamera, useTexture, Preload } from "@react-three/drei";
+import {
+  OrbitControls,
+  OrthographicCamera,
+  useTexture,
+  Preload,
+} from "@react-three/drei";
 import { MOUSE, NoToneMapping, SRGBColorSpace, TOUCH } from "three";
 import { useEffect } from "react";
 import { useMapSettings } from "../providers/map-settings";
 
-function MapLayer({ textureUrl, visible = true }: { textureUrl: string; visible?: boolean }) {
+function MapLayer({
+  textureUrl,
+  visible = true,
+}: {
+  textureUrl: string;
+  visible?: boolean;
+}) {
   const {
     camera,
     size: { height },
@@ -48,6 +59,10 @@ export default function InteractiveMap() {
       >
         <OrthographicCamera makeDefault position={[0, 0, 10]} />
         <OrbitControls
+          maxZoom={300}
+          minZoom={50}
+          dampingFactor={0.8}
+          zoomSpeed={2}
           enableRotate={false}
           zoomToCursor
           mouseButtons={{
@@ -70,3 +85,4 @@ export default function InteractiveMap() {
     </div>
   );
 }
+

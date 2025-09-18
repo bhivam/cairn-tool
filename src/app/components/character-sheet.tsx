@@ -79,7 +79,7 @@ export default function CharacterSection() {
                 Cancel
               </button>
             </header>
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 overflow-auto">
               <CharacterCreationWizard
                 onComplete={async () => {
                   await refetch();
@@ -236,10 +236,7 @@ export default function CharacterSection() {
                           Math.ceil((character.stats.dexCurrent - 1) / 2) + 5,
                         ],
                         ["Spell Level", character.stats.spellCastingLevel],
-                        [
-                          "Wisdom Prog",
-                          `${character.stats.wisCurrent}/20`,
-                        ],
+                        ["Wisdom Prog", `${character.stats.wisCurrent}/20`],
                       ].map(([label, val]) => (
                         <div
                           key={label}
