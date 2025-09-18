@@ -6,14 +6,15 @@ import CharacterCreationWizard from "./character-creation-wizard";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { match, P } from "ts-pattern";
+import { getAgility } from "@/lib/utils";
 
 export default function CharacterSection() {
   const [mode, setMode] = useState<"list" | "wizard" | "sheet">("list");
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { data: characters, refetch } = api.character.list.useQuery();
   const { data: character } = api.character.get.useQuery(
-    { id: selectedId ?? 0 },
+    { characterId: selectedId ?? "" },
     { enabled: !!selectedId },
   );
 
@@ -224,18 +225,7 @@ export default function CharacterSection() {
                             "/" +
                             character.stats.hpMax,
                         ],
-                        [
-                          "AC",
-                          character.stats.acCurrent +
-                            "/" +
-                            character.stats.acMax,
-                        ],
-                        ["Speed", character.stats.speed],
-                        [
-                          "Agility",
-                          Math.ceil((character.stats.dexCurrent - 1) / 2) + 5,
-                        ],
-                        ["Spell Level", character.stats.spellCastingLevel],
+                        ["Agility", getAgility(character.stats.dexCurrent)],
                         ["Wisdom Prog", `${character.stats.wisCurrent}/20`],
                       ].map(([label, val]) => (
                         <div
@@ -258,44 +248,15 @@ export default function CharacterSection() {
 
                 <TabsContent value="inventory">
                   <div className="space-y-3">
-                    <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
-                      <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                        Coins
-                      </div>
-                      <div className="text-foreground mt-1 text-sm">
-                        {character.coinPurse?.gold ?? 0}g,{" "}
-                        {character.coinPurse?.silver ?? 0}s,{" "}
-                        {character.coinPurse?.copper ?? 0}c,{" "}
-                        {character.coinPurse?.platinum ?? 0}p
-                      </div>
-                    </div>
-                    <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
-                      <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                        Weapons
-                      </div>
-                      <div className="text-foreground mt-1 text-sm break-words">
-                        {character.weapons?.map((w) => w.name).join(", ") ||
-                          "None"}
-                      </div>
-                    </div>
+                    <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm"></div>
                     <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
                       <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                         Bags
-                      </div>
-                      <div className="text-foreground mt-1 text-sm break-words">
-                        {character.bagTypes?.map((b) => b.bagName).join(", ") ||
-                          "None"}
                       </div>
                     </div>
                     <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
                       <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                         Items
-                      </div>
-                      <div className="text-foreground mt-1 text-sm break-words">
-                        {character.inventorySlots
-                          ?.map((i) => i.itemName)
-                          .filter(Boolean)
-                          .join(", ") || "None"}
                       </div>
                     </div>
                   </div>
@@ -307,28 +268,15 @@ export default function CharacterSection() {
                       <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                         Spells
                       </div>
-                      <div className="text-foreground mt-1 text-sm break-words">
-                        {character.spells?.map((s) => s.name).join(", ") ||
-                          "None"}
-                      </div>
                     </div>
                     <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
                       <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                         Scrolls
                       </div>
-                      <div className="text-foreground mt-1 text-sm break-words">
-                        {character.scrolls
-                          ?.map((s) => s.spellName)
-                          .join(", ") || "None"}
-                      </div>
                     </div>
                     <div className="bg-card/80 border-border rounded-lg border p-3 shadow-sm">
                       <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                         Potions
-                      </div>
-                      <div className="text-foreground mt-1 text-sm break-words">
-                        {character.potions?.map((p) => p.name).join(", ") ||
-                          "None"}
                       </div>
                     </div>
                   </div>
@@ -337,7 +285,6 @@ export default function CharacterSection() {
             </div>
           </>
         ))
-        // 3b) SHEET VIEW (loading)
         .with({ mode: "sheet", character: P.nullish }, () => (
           <div className="text-muted-foreground flex flex-1 items-center justify-center">
             Loading character…
