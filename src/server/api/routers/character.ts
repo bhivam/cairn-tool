@@ -27,7 +27,7 @@ async function getCharacter({
   characterId,
   userId,
 }: {
-  characterId: number;
+  characterId: string;
   userId: string;
 }) {
   const existingCharacter = await db.query.characters.findFirst({
@@ -42,13 +42,12 @@ async function getCharacter({
 }
 
 async function checkCharacterExists(params: {
-  characterId: number;
+  characterId: string;
   userId: string;
 }) {
   await getCharacter(params);
 }
 
-// TODO Completely Retarded
 const createCharacterSchema = z.object({
   name: z.string().min(1).max(255),
   portrait: z.string().optional(),
@@ -99,7 +98,7 @@ export const characterRouter = createTRPCRouter({
   rollStats: protectedProcedure
     .input(
       z.object({
-        characterId: z.number(),
+        characterId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -128,8 +127,6 @@ export const characterRouter = createTRPCRouter({
         })
         .returning();
 
-      console.log(stats);
-
       if (!stats) {
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       }
@@ -149,10 +146,10 @@ export const characterRouter = createTRPCRouter({
   }),
 
   get: protectedProcedure
-    .input(z.object({ id: z.number() }))
+    .input(z.object({ characterId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const character = await ctx.db.query.characters.findFirst({
-        where: eq(characters.id, input.id),
+        where: eq(characters.id, input.characterId),
         with: {
           stats: true,
         },
@@ -172,13 +169,13 @@ export const characterRouter = createTRPCRouter({
   update: protectedProcedure
     .input(
       z.object({
-        id: z.number(),
+        characterId: z.string().uuid(),
         data: updateCharacterSchema,
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const existingCharacter = await ctx.db.query.characters.findFirst({
-        where: eq(characters.id, input.id),
+        where: eq(characters.id, input.characterId),
       });
 
       if (!existingCharacter) {
@@ -195,7 +192,7 @@ export const characterRouter = createTRPCRouter({
           ...input.data,
           updatedAt: new Date(),
         })
-        .where(eq(characters.id, input.id))
+        .where(eq(characters.id, input.characterId))
         .returning();
 
       return updatedCharacter;
@@ -204,7 +201,7 @@ export const characterRouter = createTRPCRouter({
   updateStats: protectedProcedure
     .input(
       z.object({
-        characterId: z.number(),
+        characterId: z.string().uuid(),
         stats: statSchema,
       }),
     )
@@ -231,10 +228,10 @@ export const characterRouter = createTRPCRouter({
     }),
 
   delete: protectedProcedure
-    .input(z.object({ id: z.number() }))
+    .input(z.object({ characterId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const existingCharacter = await ctx.db.query.characters.findFirst({
-        where: eq(characters.id, input.id),
+        where: eq(characters.id, input.characterId),
       });
 
       if (!existingCharacter) {
@@ -245,7 +242,9 @@ export const characterRouter = createTRPCRouter({
         throw new Error("Unauthorized");
       }
 
-      await ctx.db.delete(characters).where(eq(characters.id, input.id));
+      await ctx.db
+        .delete(characters)
+        .where(eq(characters.id, input.characterId));
       return { success: true };
     }),
 });

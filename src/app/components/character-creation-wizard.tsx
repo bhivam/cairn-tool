@@ -41,7 +41,7 @@ export default function CharacterCreationWizard({
     cha: 0,
     hp: 0,
   });
-  const [characterId, setCharacterId] = useState<number | null>(null);
+  const [characterId, setCharacterId] = useState<string | null>(null);
   const [isRolling, setIsRolling] = useState(false);
   const [currentRollIndex, setCurrentRollIndex] = useState<number>(0);
   const precomputedStatsRef = useRef<Stats>(null);
@@ -58,6 +58,9 @@ export default function CharacterCreationWizard({
       precomputedStatsRef.current = res.stats;
     },
   });
+
+  const weapons = api.weapons.getWeapons.useQuery();
+
   const { sendMessage: sendMessageViaContext } = useMessageSender();
 
   const handleIdentity = (e: React.FormEvent) => {
@@ -330,7 +333,17 @@ export default function CharacterCreationWizard({
           </div>
         )}
 
-        {step === "class" && <div>UNIMPLEMENTED</div>}
+        {step === "class" && (
+          <div>
+            {weapons.isLoading ? (
+              "Loading..."
+            ) : weapons.isError ? (
+              "Error loading weapons..."
+            ) : (
+              <pre>{JSON.stringify(weapons.data, null, 2)}</pre>
+            )}
+          </div>
+        )}
 
         {step === "review" && (
           <div className="space-y-6">
