@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo, useRef } from "react";
+import { createContext, useContext, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { api, type RouterOutputs } from "@/trpc/react";
@@ -17,7 +17,6 @@ const MessageSenderContext = createContext<MessageSenderContextValue | null>(
 export function MessageProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const session = useSession();
-  const optimisticId = useRef(Math.floor(Math.random() * 1_000_000));
 
   const createMessageMutation = api.message.create.useMutation({
     onMutate: async ({ content }) => {
@@ -37,7 +36,7 @@ export function MessageProvider({ children }: { children: React.ReactNode }) {
       };
 
       const newMessage: RouterOutputs["message"]["getMessages"][number] = {
-        id: optimisticId.current++,
+        id: crypto.randomUUID(),
         content,
         createdById: session.data.user.id,
         user,
@@ -61,12 +60,15 @@ export function MessageProvider({ children }: { children: React.ReactNode }) {
     },
   });
 
-  const value = useMemo<MessageSenderContextValue>(() => ({
-    sendMessage: async (content: string) => {
-      await createMessageMutation.mutateAsync({ content });
-    },
-    isPending: createMessageMutation.isPending,
-  }), [createMessageMutation.isPending]);
+  const value = useMemo<MessageSenderContextValue>(
+    () => ({
+      sendMessage: async (content: string) => {
+        await createMessageMutation.mutateAsync({ content });
+      },
+      isPending: createMessageMutation.isPending,
+    }),
+    [createMessageMutation.isPending],
+  );
 
   return (
     <MessageSenderContext.Provider value={value}>
@@ -77,7 +79,8 @@ export function MessageProvider({ children }: { children: React.ReactNode }) {
 
 export function useMessageSender(): MessageSenderContextValue {
   const ctx = useContext(MessageSenderContext);
-  if (!ctx) throw new Error("useMessageSender must be used within MessageProvider");
+  if (!ctx)
+    throw new Error("useMessageSender must be used within MessageProvider");
   return ctx;
 }
 

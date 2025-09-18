@@ -1,20 +1,18 @@
 import { z } from "zod";
 
-import {
-  createTRPCRouter,
-  protectedProcedure,
-} from "@/server/api/trpc";
+import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { messages } from "@/server/db/schema";
 import { match } from "ts-pattern";
-import EventEmitter, { on } from 'node:events';
+import EventEmitter, { on } from "node:events";
+import { TRPCError } from "@trpc/server";
 
-type EventMap<T> = Record<keyof T, any[]>;// eslint-disable-line
+type EventMap<T> = Record<keyof T, any[]>; // eslint-disable-line
 class IterableEventEmitter<T extends EventMap<T>> extends EventEmitter<T> {
   toIterable<TEventName extends keyof T & string>(
     eventName: TEventName,
     opts?: NonNullable<Parameters<typeof on>[2]>,
   ): AsyncIterable<T[TEventName]> {
-    return on(this as any, eventName, opts) as any;// eslint-disable-line
+    return on(this as any, eventName, opts) as any; // eslint-disable-line
   }
 }
 
@@ -26,7 +24,7 @@ export const ee = new IterableEventEmitter<MyEvents>();
 
 // !s <threshold> <modifier>
 // we will display threshold and modifier
-// roll a d20 and add modifier 
+// roll a d20 and add modifier
 // meet or beat threshold (lower in this case)
 // green on success, red on failure
 // bright green or bright red for crit
@@ -34,32 +32,32 @@ export const ee = new IterableEventEmitter<MyEvents>();
 
 type ParseResult =
   | {
-    command: 'r';
-    args: {
-      x: number,
-      y: number,
-      w: number | undefined,
-      z: number | undefined,
-      zSign: "+" | "-" | undefined
-    };
-  }
+      command: "r";
+      args: {
+        x: number;
+        y: number;
+        w: number | undefined;
+        z: number | undefined;
+        zSign: "+" | "-" | undefined;
+      };
+    }
   | {
-    command: 's';
-    args: {
-      threshold: number,
-      modifier: number | undefined
-    };
-  }
+      command: "s";
+      args: {
+        threshold: number;
+        modifier: number | undefined;
+      };
+    }
   | null;
 
 export function parseContent(content: string): ParseResult {
   const patterns: Record<string, RegExp> = {
     r: /^!r[ \t]+(\d+)d(\d+)(?:d(\d+))?(?:[ \t]*([+-])[ \t]*(\d+))?$/,
-    s: /^!s[ \t]+(\d+)[ \t]*([+-]?\d+)?$/
+    s: /^!s[ \t]+(\d+)[ \t]*([+-]?\d+)?$/,
   };
 
   const entry = Object.entries(patterns).find(([_, pattern]) =>
-    pattern.test(content)
+    pattern.test(content),
   );
 
   if (!entry) return null;
@@ -77,9 +75,10 @@ export function parseContent(content: string): ParseResult {
       if (matches[1] && matches[2]) {
         const x = parseInt(matches[1], 10);
         const y = parseInt(matches[2], 10);
-        const w = matches[3] ? parseInt(matches[3]) : undefined
-        const zSign = matches[4] !== "+" && matches[4] !== "-" ? undefined : matches[4]
-        const z = matches[5] ? parseInt(matches[5]) : undefined
+        const w = matches[3] ? parseInt(matches[3]) : undefined;
+        const zSign =
+          matches[4] !== "+" && matches[4] !== "-" ? undefined : matches[4];
+        const z = matches[5] ? parseInt(matches[5]) : undefined;
 
         // TODO create some error type for result that will tell the user they fucked up
         // Should I check for this here or when I'm running the command?
@@ -88,10 +87,10 @@ export function parseContent(content: string): ParseResult {
             command,
             args: { x, y, w, z, zSign },
           };
-          return res
+          return res;
         }
       }
-      return null
+      return null;
     })
     .with("s", (command) => {
       if (matches[1]) {
@@ -100,39 +99,37 @@ export function parseContent(content: string): ParseResult {
 
         const res: ParseResult = {
           command,
-          args: { threshold, modifier }
-        }
-        return res
+          args: { threshold, modifier },
+        };
+        return res;
       }
-      return null
+      return null;
     })
-    .otherwise(() => null)
+    .otherwise(() => null);
 }
 
-export const CommandResultSchema = z.discriminatedUnion("type",
-  [
-    z.object({
-      type: z.literal("roll"),
-      rolls: z.number().array(),
-      drop: z.number().optional(),
-      add: z.number().optional(),
-      sign: z.enum(["+", "-"]).optional(),
-      total: z.number()
-    }),
-    z.object({
-      type: z.literal("save"),
-      roll: z.number(),
-      modifier: z.number().optional(),
-      threshold: z.number()
-    })
-  ]
-)
+export const CommandResultSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("roll"),
+    rolls: z.number().array(),
+    drop: z.number().optional(),
+    add: z.number().optional(),
+    sign: z.enum(["+", "-"]).optional(),
+    total: z.number(),
+  }),
+  z.object({
+    type: z.literal("save"),
+    roll: z.number(),
+    modifier: z.number().optional(),
+    threshold: z.number(),
+  }),
+]);
 
-export type CommandResult = z.infer<typeof CommandResultSchema>
+export type CommandResult = z.infer<typeof CommandResultSchema>;
 
 export type Message = {
   commandResult: CommandResult | null;
-  id: number;
+  id: string;
   content: string;
   createdById: string;
   createdAt: Date;
@@ -144,7 +141,7 @@ export type Message = {
     emailVerified: Date | null;
     image: string | null;
   };
-}
+};
 
 function runCommand(result: ParseResult): CommandResult | null {
   return match(result)
@@ -155,34 +152,35 @@ function runCommand(result: ParseResult): CommandResult | null {
         .with("+", () => z!)
         .with("-", () => -z!)
         .with(undefined, () => 0)
-        .exhaustive()
+        .exhaustive();
 
       const rolls = Array.from({ length: x }, () => {
-        return Math.ceil(Math.random() * y)
-      })
+        return Math.ceil(Math.random() * y);
+      });
 
-      console.log(rolls)
+      console.log(rolls);
 
       const indicesToRemove = w
         ? [...rolls]
-          .map((value, index) => ({ value, index }))
-          .sort((a, b) => a.value - b.value)
-          .slice(0, w)
-          .map(obj => obj.index)
+            .map((value, index) => ({ value, index }))
+            .sort((a, b) => a.value - b.value)
+            .slice(0, w)
+            .map((obj) => obj.index)
         : [];
 
-      console.log(indicesToRemove)
+      console.log(indicesToRemove);
 
-      const droppedRolls = rolls
-        .filter((_, idx) => !indicesToRemove.includes(idx));
+      const droppedRolls = rolls.filter(
+        (_, idx) => !indicesToRemove.includes(idx),
+      );
 
-      console.log(droppedRolls)
+      console.log(droppedRolls);
 
       const total = droppedRolls
-        .map(r => r + buff)
+        .map((r) => r + buff)
         .reduce((sum, val) => sum + val, 0);
 
-      console.log(total)
+      console.log(total);
 
       const result: CommandResult = {
         type: "roll",
@@ -190,36 +188,38 @@ function runCommand(result: ParseResult): CommandResult | null {
         drop: w,
         add: z,
         sign: zSign,
-        total: total
-      }
+        total: total,
+      };
 
-      return result
+      return result;
     })
     .with({ command: "s" }, ({ args: { threshold, modifier } }) => {
-      const roll = Math.ceil(Math.random() * 20)
+      const roll = Math.ceil(Math.random() * 20);
 
       const result: CommandResult = {
         type: "save",
         roll,
         modifier,
         threshold,
-      }
-      return result
+      };
+      return result;
     })
     .otherwise(() => null);
 }
 
 export const messageRouter = createTRPCRouter({
   create: protectedProcedure
-    .input(z.object({
-      content: z.string().min(1)
-    }))
+    .input(
+      z.object({
+        content: z.string().min(1),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       let commandResult = null;
-      const command = parseContent(input.content)
+      const command = parseContent(input.content);
 
       if (command) {
-        commandResult = runCommand(command)
+        commandResult = runCommand(command);
       }
 
       const [inserted] = await ctx.db
@@ -232,7 +232,7 @@ export const messageRouter = createTRPCRouter({
         .returning();
 
       if (!inserted) {
-        throw new Error("big problem :(")
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       }
 
       const message = await ctx.db.query.messages.findFirst({
@@ -241,10 +241,10 @@ export const messageRouter = createTRPCRouter({
       });
 
       if (!message) {
-        throw new Error("big problem :(")
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       }
 
-      ee.emit("newMessage", { ...message, commandResult })
+      ee.emit("newMessage", { ...message, commandResult });
     }),
 
   getMessages: protectedProcedure.query(async ({ ctx }) => {
@@ -253,25 +253,22 @@ export const messageRouter = createTRPCRouter({
       orderBy: (messages, { asc }) => [asc(messages.createdAt)],
     });
 
-    const messagesWithResults: Message[] = messages.map(
-      message => ({
-        ...message,
-        commandResult: message.commandResult
-          ? CommandResultSchema.parse(message.commandResult)
-          : null
-      })
-    )
+    const messagesWithResults: Message[] = messages.map((message) => ({
+      ...message,
+      commandResult: message.commandResult
+        ? CommandResultSchema.parse(message.commandResult)
+        : null,
+    }));
 
     return messagesWithResults;
   }),
 
-  messageUpdates: protectedProcedure
-    .subscription(async function*(opts) {
-      for await (const message of ee.toIterable("newMessage", {
-        signal: opts.signal
-      })) {
-        yield* message
-      }
-    })
+  messageUpdates: protectedProcedure.subscription(async function* (opts) {
+    for await (const message of ee.toIterable("newMessage", {
+      signal: opts.signal,
+    })) {
+      yield* message;
+    }
+  }),
 });
 

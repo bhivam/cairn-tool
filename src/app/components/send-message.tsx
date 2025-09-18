@@ -40,7 +40,7 @@ export default function SendMessage({
         setTimeout(() => {
           if (inputRef.current) inputRef.current.focus();
         }, 20);
-      } catch (_) {
+      } catch {
         setError("Failed to send message.");
       }
     },
@@ -106,3 +106,4 @@ export default function SendMessage({
     </form>
   );
 }
+
